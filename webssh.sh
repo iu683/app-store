@@ -31,8 +31,9 @@ show_menu() {
     echo -e "${GREEN}06.${RESET} 查看 WebSSH 日志"
     echo -e "${GREEN}07.${RESET} 更新 WebSSH 镜像并重启"
     echo -e "${GREEN}08.${RESET} 删除 WebSSH 容器"
-    echo -e "${GREEN}09.${RESET} 卸载 Docker 与 WebSSH"
+    echo -e "${GREEN}09.${RESET} 卸载 WebSSH（保留 Docker）"
     echo -e "${GREEN}10.${RESET} 设置菜单开机自启"
+    echo -e "${GREEN}11.${RESET} 显示 WebSSH 访问地址"
     echo -e "${GREEN}0.${RESET} 退出"
     echo -e "${CYAN}=======================================================${RESET}"
     read -p "请输入操作编号: " choice
@@ -45,8 +46,9 @@ show_menu() {
         6) logs_container ;;
         7) update_container ;;
         8) remove_container ;;
-        9) uninstall_all ;;
+        9) uninstall_webssh ;;
         10) enable_autostart ;;
+        11) show_access_url ;;
         0) exit 0 ;;
         *) echo -e "${RED}输入错误，请重新选择！${RESET}"; sleep 2; show_menu ;;
     esac
@@ -132,17 +134,12 @@ remove_container() {
     show_menu
 }
 
-uninstall_all() {
-    read -p "确定要卸载 Docker 与 WebSSH 吗？(y/N): " confirm
+uninstall_webssh() {
+    read -p "确定要卸载 WebSSH 容器和镜像吗？(y/N): " confirm
     if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
         docker rm -f $CONTAINER_NAME 2>/dev/null
-        docker system prune -af
-        if command -v apt &>/dev/null; then
-            apt remove -y docker docker-engine docker.io containerd runc
-        elif command -v yum &>/dev/null; then
-            yum remove -y docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-engine
-        fi
-        echo -e "${GREEN}Docker 与 WebSSH 已完全卸载${RESET}"
+        docker rmi $IMAGE_NAME 2>/dev/null
+        echo -e "${GREEN}WebSSH 容器和镜像已删除${RESET}"
     fi
     read -p "按回车返回菜单..." 
     show_menu
@@ -175,6 +172,13 @@ EOF"
     sudo systemctl start webssh_menu.service
 
     echo -e "${GREEN}菜单已设置开机自启${RESET}"
+    read -p "按回车返回菜单..." 
+    show_menu
+}
+
+show_access_url() {
+    VPS_IP=$(hostname -I | awk '{print $1}')
+    echo -e "${GREEN}WebSSH 访问地址: http://$VPS_IP:$PORT${RESET}"
     read -p "按回车返回菜单..." 
     show_menu
 }
