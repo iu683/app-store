@@ -11,6 +11,18 @@ CONTAINER_NAME="webssh"
 IMAGE_NAME="cmliu/webssh:latest"
 PORT=8888
 
+# ================== iptables 检查函数 ==================
+check_iptables() {
+    MODE=$(sudo update-alternatives --query iptables | grep 'Value: ' | awk '{print $2}')
+    if [[ "$MODE" == *"nft"* ]]; then
+        echo -e "${YELLOW}检测到 iptables 使用 nft 模式，正在切换到 legacy 模式...${RESET}"
+        sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
+        sudo update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
+        sudo systemctl restart docker
+        echo -e "${GREEN}已切换 iptables 为 legacy 并重启 Docker${RESET}"
+    fi
+}
+
 # ================== 端口检查函数 ==================
 check_port() {
     while lsof -i:$PORT &>/dev/null; do
@@ -56,6 +68,7 @@ show_menu() {
 
 # ================== 功能函数 ==================
 install_run() {
+    check_iptables
     check_port
 
     # 安装 Docker（如果未安装）
@@ -66,7 +79,7 @@ install_run() {
         systemctl start docker
     fi
 
-    # 开放端口 8888（适用于 firewalld）
+    # 开放端口（适用于 firewalld）
     if command -v firewall-cmd &>/dev/null; then
         firewall-cmd --permanent --add-port=$PORT/tcp
         firewall-cmd --reload
@@ -75,7 +88,11 @@ install_run() {
     # 拉取镜像并运行
     docker pull $IMAGE_NAME
     docker run -d --name $CONTAINER_NAME --restart always -p $PORT:8888 $IMAGE_NAME
-    echo -e "${GREEN}WebSSH 已启动，访问: http://你的VPS_IP:$PORT${RESET}"
+
+    # 获取 VPS IP 并显示访问地址
+    VPS_IP=$(hostname -I | awk '{print $1}')
+    echo -e "${GREEN}WebSSH 已启动，访问: http://$VPS_IP:$PORT${RESET}"
+
     read -p "按回车返回菜单..." 
     show_menu
 }
@@ -114,6 +131,7 @@ logs_container() {
 }
 
 update_container() {
+    check_iptables
     check_port
     echo -e "${YELLOW}正在拉取最新镜像...${RESET}"
     docker pull $IMAGE_NAME
@@ -122,7 +140,10 @@ update_container() {
         docker rm $CONTAINER_NAME
     fi
     docker run -d --name $CONTAINER_NAME --restart always -p $PORT:8888 $IMAGE_NAME
-    echo -e "${GREEN}WebSSH 已更新并重新启动${RESET}"
+
+    VPS_IP=$(hostname -I | awk '{print $1}')
+    echo -e "${GREEN}WebSSH 已更新并重新启动，访问: http://$VPS_IP:$PORT${RESET}"
+
     read -p "按回车返回菜单..." 
     show_menu
 }
