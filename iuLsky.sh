@@ -2,8 +2,8 @@
 
 WORK_DIR="/wwwroot/docker/lsky"
 LOG_FILE="${WORK_DIR}/lsky_deploy.log"
-MYSQL_CONTAINER="mysql8"          # 改为你实际的 MySQL 容器名
-MYSQL_ROOT_PWD="root123456"
+MYSQL_CONTAINER="mysql8"          # MySQL 容器名
+MYSQL_ROOT_PWD="123456"           # MySQL root 密码
 LSKY_DB_NAME="lsky"
 LSKY_DB_USER="lsky"
 LSKY_DB_PWD="998021"
