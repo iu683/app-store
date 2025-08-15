@@ -1,5 +1,135 @@
 #!/bin/bash
 
+# 一键部署三合一音乐服务（最终版）
+PROJECT_DIR=~/music_server
+MUSIC_DIR=/data/music
+
+echo "========== 三合一音乐服务 一键部署 =========="
+
+# 1️⃣ 检查 Docker 是否安装
+if ! command -v docker &> /dev/null
+then
+    echo "❌ Docker 未安装，请先安装 Docker！"
+    exit 1
+fi
+
+# 2️⃣ 检查 Docker Compose 是否安装
+if ! command -v docker-compose &> /dev/null
+then
+    echo "❌ Docker Compose 未安装，请先安装 Docker Compose！"
+    exit 1
+fi
+
+# 3️⃣ 检查端口占用
+PORTS=(4533 4534 8002)
+for PORT in "${PORTS[@]}"; do
+    if lsof -i:$PORT &> /dev/null; then
+        echo "❌ 端口 $PORT 已被占用，请先释放该端口！"
+        exit 1
+    fi
+done
+
+echo "✅ 环境检查通过，Docker 和端口可用"
+
+# 4️⃣ 创建目录
+echo "创建项目目录: $PROJECT_DIR"
+mkdir -p $PROJECT_DIR
+mkdir -p $MUSIC_DIR
+mkdir -p $PROJECT_DIR/data
+
+# 5️⃣ 进入项目目录
+cd $PROJECT_DIR || exit
+
+# 6️⃣ 生成 .env 文件
+echo "生成 .env 文件..."
+read -p "请输入 LastFM API Key: " ND_LASTFM_APIKEY
+read -p "请输入 LastFM Secret: " ND_LASTFM_SECRET
+read -p "请输入 Spotify ID: " ND_SPOTIFY_ID
+read -p "请输入 Spotify Secret: " ND_SPOTIFY_SECRET
+read -p "设置 Miniserve 用户名: " MINSERVE_USER
+read -s -p "设置 Miniserve 密码: " MINSERVE_PASS
+echo
+cat > .env <<EOF
+ND_LASTFM_ENABLED=true
+ND_LASTFM_APIKEY=$ND_LASTFM_APIKEY
+ND_LASTFM_SECRET=$ND_LASTFM_SECRET
+ND_SPOTIFY_ID=$ND_SPOTIFY_ID
+ND_SPOTIFY_SECRET=$ND_SPOTIFY_SECRET
+
+MINSERVE_USER=$MINSERVE_USER
+MINSERVE_PASS=$MINSERVE_PASS
+EOF
+
+# 7️⃣ 生成 docker-compose.yml
+echo "生成 docker-compose.yml..."
+cat > docker-compose.yml <<'EOF'
+version: "3.9"
+
+networks:
+  music_net:
+    driver: bridge
+
+services:
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome
+    networks:
+      - music_net
+    ports:
+      - "127.0.0.1:4533:4533"
+    environment:
+      ND_SCANSCHEDULE: 1m
+      ND_LASTFM_ENABLED: ${ND_LASTFM_ENABLED}
+      ND_LASTFM_APIKEY: ${ND_LASTFM_APIKEY}
+      ND_LASTFM_SECRET: ${ND_LASTFM_SECRET}
+      ND_SPOTIFY_ID: ${ND_SPOTIFY_ID}
+      ND_SPOTIFY_SECRET: ${ND_SPOTIFY_SECRET}
+      ND_LASTFM_LANGUAGE: zh
+      ND_LOGLEVEL: info
+      ND_SESSIONTIMEOUT: 24h
+      ND_BASEURL: ""
+      ND_ENABLETRANSCODINGCONFIG: "true"
+      ND_TRANSCODINGCACHESIZE: "4000M"
+      ND_IMAGECACHESIZE: "1000M"
+    volumes:
+      - ./data/navidrome:/data
+      - /data/music:/music:ro
+    restart: unless-stopped
+
+  miniserve:
+    image: svenstaro/miniserve:latest
+    container_name: miniserve
+    networks:
+      - music_net
+    depends_on:
+      - navidrome
+    ports:
+      - "4534:8080"
+    volumes:
+      - /data/music:/downloads
+    command: "-r -z -u -q -p 8080 -a ${MINSERVE_USER}:${MINSERVE_PASS} /downloads"
+    restart: unless-stopped
+
+  music_tag_web:
+    image: xhongc/music_tag_web:latest
+    container_name: music_tag_web
+    networks:
+      - music_net
+    depends_on:
+      - navidrome
+    ports:
+      - "127.0.0.1:8002:8002"
+    volumes:
+      - /data/music:/app/media
+      - ./data/music_tag_web:/app/data
+    restart: unless-stopped
+EOF
+
+# 8️⃣ 生成管理脚本 manage_music.sh
+echo "生成管理脚本 manage_music.sh..."
+cat > manage_music.sh <<'EOF'
+#!/bin/bash
+
 COMPOSE_FILE="docker-compose.yml"
 
 show_menu() {
@@ -7,7 +137,6 @@ show_menu() {
     echo "==============================="
     echo "   音乐服务管理菜单"
     echo "==============================="
-    # 显示容器状态
     echo "容器状态:"
     docker-compose -f $COMPOSE_FILE ps --services --filter "status=running" | awk '{print "  " $1 " : 运行中"}'
     docker-compose -f $COMPOSE_FILE ps --services --filter "status=exited" | awk '{print "  " $1 " : 停止"}'
@@ -26,42 +155,19 @@ show_menu() {
     echo -n "请输入选项: "
 }
 
-start_services() {
-    docker-compose -f $COMPOSE_FILE up -d
-    echo "所有服务已启动"
-    read -p "按回车返回菜单..."
-}
-
-stop_services() {
-    docker-compose -f $COMPOSE_FILE down
-    echo "所有服务已停止"
-    read -p "按回车返回菜单..."
-}
-
-restart_services() {
-    docker-compose -f $COMPOSE_FILE restart
-    echo "所有服务已重启"
-    read -p "按回车返回菜单..."
-}
+start_services() { docker-compose -f $COMPOSE_FILE up -d; echo "所有服务已启动"; read -p "按回车返回菜单..."; }
+stop_services() { docker-compose -f $COMPOSE_FILE down; echo "所有服务已停止"; read -p "按回车返回菜单..."; }
+restart_services() { docker-compose -f $COMPOSE_FILE restart; echo "所有服务已重启"; read -p "按回车返回菜单..."; }
 
 view_logs() {
     case $1 in
-        navidrome)
-            docker-compose -f $COMPOSE_FILE logs -f navidrome
-            ;;
-        miniserve)
-            docker-compose -f $COMPOSE_FILE logs -f miniserve
-            ;;
-        music_tag_web)
-            docker-compose -f $COMPOSE_FILE logs -f music_tag_web
-            ;;
+        navidrome) docker-compose -f $COMPOSE_FILE logs -f navidrome ;;
+        miniserve) docker-compose -f $COMPOSE_FILE logs -f miniserve ;;
+        music_tag_web) docker-compose -f $COMPOSE_FILE logs -f music_tag_web ;;
     esac
 }
 
-view_status() {
-    docker-compose -f $COMPOSE_FILE ps
-    read -p "按回车返回菜单..."
-}
+view_status() { docker-compose -f $COMPOSE_FILE ps; read -p "按回车返回菜单..."; }
 
 update_services() {
     echo "拉取最新镜像..."
@@ -76,9 +182,7 @@ uninstall_services() {
     echo "⚠️  警告：此操作将停止并删除所有容器及镜像！"
     read -p "你确定要继续吗？(y/N): " confirm
     if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-        echo "停止并删除所有容器..."
         docker-compose -f $COMPOSE_FILE down
-        echo "删除所有镜像..."
         docker-compose -f $COMPOSE_FILE rm -f
         echo "操作完成，如需删除数据，请手动清理 ./data 文件夹"
     else
@@ -104,3 +208,20 @@ while true; do
         *) echo "无效选项"; sleep 1 ;;
     esac
 done
+EOF
+
+chmod +x manage_music.sh
+
+# 9️⃣ 启动服务
+echo "正在启动服务..."
+docker-compose up -d
+
+# 10️⃣ 输出访问地址
+echo "==============================="
+echo "🎵 三合一音乐服务已启动完成 🎵"
+echo "访问地址："
+echo "Navidrome        : http://127.0.0.1:4533"
+echo "Miniserve         : http://127.0.0.1:4534 （账号: $MINSERVE_USER  密码: $MINSERVE_PASS）"
+echo "MusicTagWeb       : http://127.0.0.1:8002"
+echo "==============================="
+echo "你可以运行 ./manage_music.sh 来管理服务"
