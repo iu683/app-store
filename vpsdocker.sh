@@ -7,6 +7,9 @@ RED="\033[31m"
 RESET="\033[0m"
 BOLD="\033[1m"
 
+# 脚本固定路径
+SCRIPT_PATH="$HOME/vpsdocker.sh"
+
 # ================== 菜单函数 ==================
 show_menu() {
     clear
@@ -44,7 +47,6 @@ show_menu() {
     echo -e "${GREEN}[88] 更新菜单脚本${RESET}"
     echo -e "${GREEN}[99] 卸载菜单脚本${RESET}"
     echo -e "${GREEN}[0] 退出${RESET}"
-    echo -e "${YELLOW}[d/D] 快捷键运行更新后的脚本${RESET}\n"
 }
 
 # ================== 功能函数 ==================
@@ -78,17 +80,12 @@ install_service() {
         26) bash <(curl -sL https://raw.githubusercontent.com/iu683/app-store/main/iuLsky.sh) ;;
         88)
             echo -e "${GREEN}正在更新脚本...${RESET}"
-            tmp_file=$(mktemp)
-            curl -fsSL -o "$tmp_file" https://raw.githubusercontent.com/iu683/app-store/main/vpsdocker.sh
-            chmod +x "$tmp_file"
-            cp "$tmp_file" "$HOME/vpsdocker.sh"
-            rm -f "$tmp_file"
+            curl -fsSL -o "$SCRIPT_PATH" https://raw.githubusercontent.com/iu683/app-store/main/vpsdocker.sh
+            chmod +x "$SCRIPT_PATH"
             echo -e "${GREEN}更新完成!${RESET}"
-            echo -e "${YELLOW}下次可使用快捷键 d/D 运行更新后的脚本${RESET}"
             ;;
         99)
             echo -e "${GREEN}正在卸载脚本...${RESET}"
-            SCRIPT_PATH=$(realpath "$0")
             rm -f "$SCRIPT_PATH"
             echo -e "${GREEN}卸载完成! 脚本及快捷键已清除.${RESET}"
             exit 0
@@ -110,9 +107,9 @@ while true; do
 
     case "$choice" in
         [dD])
-            if [[ -f "$HOME/vpsdocker.sh" ]]; then
+            if [[ -f "$SCRIPT_PATH" ]]; then
                 echo -e "${GREEN}正在运行更新后的脚本...${RESET}"
-                bash "$HOME/vpsdocker.sh"
+                bash "$SCRIPT_PATH"
                 exit 0
             else
                 echo -e "${RED}更新后的脚本不存在，请先使用[88]更新!${RESET}"
