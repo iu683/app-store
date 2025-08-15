@@ -1,48 +1,32 @@
 #!/bin/bash
-# 功能: 一键部署三合一音乐服务（Navidrome + Miniserve + MusicTagWeb）并生成管理菜单
+# 功能：音乐服务管理脚本（Navidrome + Miniserve + MusicTagWeb）
+# 第一次运行：bash manage_music.sh install
+# 再次运行：bash manage_music.sh
 
 PROJECT_DIR=~/music_server
 MUSIC_DIR=/data/music
+COMPOSE_FILE="$PROJECT_DIR/docker-compose.yml"
 
-echo "========== 三合一音乐服务 一键部署 =========="
+# ---------- 安装函数 ----------
+install_services() {
+    echo "========== 开始安装三合一音乐服务 =========="
 
-# 1️⃣ 环境检测
-if ! command -v docker &> /dev/null; then
-    echo "❌ Docker 未安装，请先安装 Docker！"
-    exit 1
-fi
+    # 创建目录
+    mkdir -p "$PROJECT_DIR/data"
+    mkdir -p "$MUSIC_DIR"
+    cd "$PROJECT_DIR" || exit
 
-if ! command -v docker-compose &> /dev/null; then
-    echo "❌ Docker Compose 未安装，请先安装 Docker Compose！"
-    exit 1
-fi
+    # 交互输入 API Key 和账号密码
+    read -p "请输入 LastFM API Key: " ND_LASTFM_APIKEY
+    read -p "请输入 LastFM Secret: " ND_LASTFM_SECRET
+    read -p "请输入 Spotify ID: " ND_SPOTIFY_ID
+    read -p "请输入 Spotify Secret: " ND_SPOTIFY_SECRET
+    read -p "设置 Miniserve 用户名: " MINSERVE_USER
+    read -s -p "设置 Miniserve 密码: " MINSERVE_PASS
+    echo
 
-PORTS=(4533 4534 8002)
-for PORT in "${PORTS[@]}"; do
-    if lsof -i:$PORT &> /dev/null; then
-        echo "❌ 端口 $PORT 已被占用，请先释放该端口！"
-        exit 1
-    fi
-done
-
-echo "✅ 环境检查通过，Docker 和端口可用"
-
-# 2️⃣ 创建目录
-mkdir -p $PROJECT_DIR
-mkdir -p $MUSIC_DIR
-mkdir -p $PROJECT_DIR/data
-cd $PROJECT_DIR || exit
-
-# 3️⃣ 生成 .env
-read -p "请输入 LastFM API Key: " ND_LASTFM_APIKEY
-read -p "请输入 LastFM Secret: " ND_LASTFM_SECRET
-read -p "请输入 Spotify ID: " ND_SPOTIFY_ID
-read -p "请输入 Spotify Secret: " ND_SPOTIFY_SECRET
-read -p "设置 Miniserve 用户名: " MINSERVE_USER
-read -s -p "设置 Miniserve 密码: " MINSERVE_PASS
-echo
-
-cat > .env <<EOF
+    # 生成 .env
+    cat > .env <<EOF
 ND_LASTFM_ENABLED=true
 ND_LASTFM_APIKEY=$ND_LASTFM_APIKEY
 ND_LASTFM_SECRET=$ND_LASTFM_SECRET
@@ -53,8 +37,8 @@ MINSERVE_USER=$MINSERVE_USER
 MINSERVE_PASS=$MINSERVE_PASS
 EOF
 
-# 4️⃣ 生成 docker-compose.yml
-cat > docker-compose.yml <<'EOF'
+    # 生成 docker-compose.yml
+    cat > docker-compose.yml <<EOF
 version: "3.9"
 
 networks:
@@ -71,11 +55,11 @@ services:
       - "127.0.0.1:4533:4533"
     environment:
       ND_SCANSCHEDULE: 1m
-      ND_LASTFM_ENABLED: ${ND_LASTFM_ENABLED}
-      ND_LASTFM_APIKEY: ${ND_LASTFM_APIKEY}
-      ND_LASTFM_SECRET: ${ND_LASTFM_SECRET}
-      ND_SPOTIFY_ID: ${ND_SPOTIFY_ID}
-      ND_SPOTIFY_SECRET: ${ND_SPOTIFY_SECRET}
+      ND_LASTFM_ENABLED: \${ND_LASTFM_ENABLED}
+      ND_LASTFM_APIKEY: \${ND_LASTFM_APIKEY}
+      ND_LASTFM_SECRET: \${ND_LASTFM_SECRET}
+      ND_SPOTIFY_ID: \${ND_SPOTIFY_ID}
+      ND_SPOTIFY_SECRET: \${ND_SPOTIFY_SECRET}
       ND_LASTFM_LANGUAGE: zh
       ND_LOGLEVEL: info
       ND_SESSIONTIMEOUT: 24h
@@ -85,7 +69,7 @@ services:
       ND_IMAGECACHESIZE: "1000M"
     volumes:
       - ./data/navidrome:/data
-      - /data/music:/music:ro
+      - $MUSIC_DIR:/music:ro
     restart: unless-stopped
 
   miniserve:
@@ -98,8 +82,8 @@ services:
     ports:
       - "4534:8080"
     volumes:
-      - /data/music:/downloads
-    command: "-r -z -u -q -p 8080 -a ${MINSERVE_USER}:${MINSERVE_PASS} /downloads"
+      - $MUSIC_DIR:/downloads
+    command: "-r -z -u -q -p 8080 -a \${MINSERVE_USER}:\${MINSERVE_PASS} /downloads"
     restart: unless-stopped
 
   music_tag_web:
@@ -112,17 +96,22 @@ services:
     ports:
       - "127.0.0.1:8002:8002"
     volumes:
-      - /data/music:/app/media
+      - $MUSIC_DIR:/app/media
       - ./data/music_tag_web:/app/data
     restart: unless-stopped
 EOF
 
-# 5️⃣ 生成管理脚本
-cat > manage_music.sh <<'EOF'
-#!/bin/bash
+    # 启动服务
+    docker-compose up -d
 
-COMPOSE_FILE="docker-compose.yml"
+    echo "✅ 安装完成！访问地址："
+    echo "Navidrome    : http://127.0.0.1:4533"
+    echo "Miniserve     : http://127.0.0.1:4534 (账号: $MINSERVE_USER  密码: $MINSERVE_PASS)"
+    echo "MusicTagWeb   : http://127.0.0.1:8002"
+    echo "========================================="
+}
 
+# ---------- 菜单函数 ----------
 show_menu() {
     clear
     echo "==============================="
@@ -156,6 +145,7 @@ view_logs() {
         miniserve) docker-compose -f $COMPOSE_FILE logs -f miniserve ;;
         music_tag_web) docker-compose -f $COMPOSE_FILE logs -f music_tag_web ;;
     esac
+    read -p "按回车返回菜单..."
 }
 
 view_status() { docker-compose -f $COMPOSE_FILE ps; read -p "按回车返回菜单..."; }
@@ -182,6 +172,20 @@ uninstall_services() {
     read -p "按回车返回菜单..."
 }
 
+# ---------- 主程序 ----------
+cd "$PROJECT_DIR" || exit
+
+if [[ "$1" == "install" ]]; then
+    install_services
+fi
+
+# 检查 docker-compose.yml 是否存在
+if [ ! -f "$COMPOSE_FILE" ]; then
+    echo "❌ docker-compose.yml 不存在，请先运行 bash manage_music.sh install"
+    exit 1
+fi
+
+# 打开管理菜单
 while true; do
     show_menu
     read choice
@@ -199,23 +203,3 @@ while true; do
         *) echo "无效选项"; sleep 1 ;;
     esac
 done
-EOF
-
-chmod +x manage_music.sh
-
-# 6️⃣ 启动服务
-docker-compose up -d
-
-# 7️⃣ 输出访问地址
-echo "==============================="
-echo "🎵 三合一音乐服务已启动完成 🎵"
-echo "访问地址："
-echo "Navidrome        : http://127.0.0.1:4533"
-echo "Miniserve         : http://127.0.0.1:4534 （账号: $MINSERVE_USER  密码: $MINSERVE_PASS）"
-echo "MusicTagWeb       : http://127.0.0.1:8002"
-echo "==============================="
-echo "管理菜单将自动启动..."
-sleep 2
-
-# 8️⃣ 启动管理菜单
-./manage_music.sh
