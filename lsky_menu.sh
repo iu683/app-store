@@ -1,46 +1,45 @@
 #!/bin/bash
-# Lsky Pro 一键部署脚本（带日志、访问地址和管理功能）
+# Lsky Pro 一键管理脚本
 
+# 配置
 WORK_DIR="/wwwroot/docker/lsky"
 MYSQL_CONTAINER="mysql-lsky"
 MYSQL_PASSWORD="78dada57"
 MYSQL_DATABASE="lsky"
-ADMIN_EMAIL="arcticfuiry@hotmail.com"
-ADMIN_PASSWORD="2635382860"
+MYSQL_USER="root"
 LSKY_CONTAINER="lskypro"
-LSKY_PORT="1128"
+LSKY_PORT=1128
 
-mkdir -p $WORK_DIR
-cd $WORK_DIR
+# 自动检测可用端口
+find_free_port() {
+    local port=$1
+    while ss -tuln | grep -q ":$port "; do
+        echo "端口 $port 已被占用，尝试下一个..."
+        port=$((port + 1))
+    done
+    echo $port
+}
 
+# 安装 Lsky Pro
 install_lsky() {
-    echo "=== 创建 docker-compose.yml ==="
-    cat > docker-compose.yml <<EOF
-version: '3'
-services:
-  lskypro:
-    image: halcyonazure/lsky-pro-docker:latest
-    restart: unless-stopped
-    hostname: lsky
-    container_name: lskypro
-    environment:
-      - WEB_PORT=8089
-      - DB_HOST=${MYSQL_CONTAINER}
-      - DB_PORT=3306
-      - DB_DATABASE=${MYSQL_DATABASE}
-      - DB_USERNAME=root
-      - DB_PASSWORD=${MYSQL_PASSWORD}
-    volumes:
-      - ./data:/var/www/html/
-    ports:
-      - "${LSKY_PORT}:8089"
-    networks:
-      - lsky_net
+    mkdir -p "${WORK_DIR}"
+    cd "${WORK_DIR}" || exit
 
+    LSKY_PORT=$(find_free_port ${LSKY_PORT})
+
+    # 检查 MySQL 容器
+    if docker ps -a --format '{{.Names}}' | grep -q "^${MYSQL_CONTAINER}$"; then
+        echo "检测到已有 MySQL 容器: ${MYSQL_CONTAINER}"
+        if [ "$(docker inspect -f '{{.State.Running}}' ${MYSQL_CONTAINER})" != "true" ]; then
+            echo "MySQL 容器未运行，正在启动..."
+            docker start ${MYSQL_CONTAINER}
+        fi
+        MYSQL_SERVICE=""
+    else
+        MYSQL_SERVICE="
   ${MYSQL_CONTAINER}:
     image: mysql:5.7.22
     restart: unless-stopped
-    hostname: ${MYSQL_CONTAINER}
     container_name: ${MYSQL_CONTAINER}
     command: --default-authentication-plugin=mysql_native_password
     volumes:
@@ -51,102 +50,79 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
     networks:
-      - lsky_net
-
-networks:
-  lsky_net:
-    external: false
-EOF
-
-    echo "=== 启动 Lsky Pro 和 MySQL 容器 ==="
-    docker compose up -d
-
-    echo "=== 等待 MySQL 启动中（最长 20 秒）==="
-    for i in {1..20}; do
-        if docker exec ${MYSQL_CONTAINER} mysqladmin -uroot -p${MYSQL_PASSWORD} ping &>/dev/null; then
-            echo "MySQL 已启动"
-            break
-        fi
-        sleep 1
-    done
-
-    if ! docker exec ${MYSQL_CONTAINER} mysqladmin -uroot -p${MYSQL_PASSWORD} ping &>/dev/null; then
-        echo "❌ MySQL 启动失败，日志如下："
-        docker logs ${MYSQL_CONTAINER}
-        exit 1
+      - lsky-net
+"
     fi
 
-    echo "=== 生成管理员密码哈希 ==="
-    HASH=$(docker run --rm alpine sh -c "apk add --no-cache php81 php81-pecl-bcrypt >/dev/null && php81 -r \"echo password_hash('${ADMIN_PASSWORD}', PASSWORD_BCRYPT);\"")
-
-    echo "=== 初始化 Lsky Pro 数据库（创建管理员账号）==="
-    docker exec -i ${MYSQL_CONTAINER} mysql -uroot -p${MYSQL_PASSWORD} ${MYSQL_DATABASE} <<EOF
-CREATE TABLE IF NOT EXISTS users (
-  id int(10) unsigned NOT NULL AUTO_INCREMENT,
-  username varchar(255) NOT NULL,
-  email varchar(255) NOT NULL,
-  password varchar(255) NOT NULL,
-  role varchar(50) NOT NULL DEFAULT 'admin',
-  created_at timestamp NULL DEFAULT NULL,
-  updated_at timestamp NULL DEFAULT NULL,
-  PRIMARY KEY (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-DELETE FROM users WHERE id=1;
-INSERT INTO users (id, username, email, password, role, created_at, updated_at) VALUES
-(1, 'admin', '${ADMIN_EMAIL}', '${HASH}', 'admin', NOW(), NOW());
+    # 生成 docker-compose.yml
+    cat > docker-compose.yml <<EOF
+version: '3'
+services:
+  ${LSKY_CONTAINER}:
+    image: halcyonazure/lsky-pro-docker:latest
+    restart: unless-stopped
+    container_name: ${LSKY_CONTAINER}
+    environment:
+      - WEB_PORT=8089
+      - DB_HOST=${MYSQL_CONTAINER}
+      - DB_DATABASE=${MYSQL_DATABASE}
+      - DB_USERNAME=${MYSQL_USER}
+      - DB_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - ./data:/var/www/html/
+    ports:
+      - "${LSKY_PORT}:8089"
+    networks:
+      - lsky-net
+${MYSQL_SERVICE}
+networks:
+  lsky-net: {}
 EOF
+
+    docker compose up -d
 
     SERVER_IP=$(curl -s ifconfig.me)
     echo "=== 部署完成 ==="
     echo "访问地址: http://${SERVER_IP}:${LSKY_PORT}"
-    echo "管理员邮箱: ${ADMIN_EMAIL}"
-    echo "管理员密码: ${ADMIN_PASSWORD}"
+    echo "数据库容器: ${MYSQL_CONTAINER}"
+    echo "数据库名: ${MYSQL_DATABASE}"
+    echo "数据库用户: ${MYSQL_USER}"
+    echo "数据库密码: ${MYSQL_PASSWORD}"
     echo "=== 查看实时日志（按 Ctrl+C 退出）==="
     docker logs -f ${LSKY_CONTAINER}
 }
 
+# 更新 Lsky Pro
 update_lsky() {
-    echo "=== 更新 Lsky Pro ==="
-    docker compose pull lskypro
-    docker compose up -d
-    echo "=== Lsky Pro 更新完成，实时日志如下 ==="
-    docker logs -f ${LSKY_CONTAINER}
+    cd "${WORK_DIR}" || exit
+    docker compose pull ${LSKY_CONTAINER}
+    docker compose up -d ${LSKY_CONTAINER}
+    echo "Lsky Pro 已更新完成！"
 }
 
-view_logs() {
-    echo "=== 请选择要查看的日志 ==="
-    echo "1. Lsky Pro 日志"
-    echo "2. MySQL 日志"
-    read -p "输入选择 [1-2]: " log_choice
-    case $log_choice in
-        1) docker logs -f ${LSKY_CONTAINER} ;;
-        2) docker logs -f ${MYSQL_CONTAINER} ;;
-        *) echo "无效选择" ;;
-    esac
-}
-
+# 卸载 Lsky Pro
 uninstall_lsky() {
-    echo "=== 卸载 Lsky Pro 和 MySQL 容器 ==="
-    docker compose down -v
-    rm -rf $WORK_DIR
-    echo "卸载完成"
+    cd "${WORK_DIR}" || exit
+    docker compose down
+    rm -rf "${WORK_DIR}"
+    echo "Lsky Pro 已卸载！"
 }
 
-menu() {
-    echo "=== Lsky Pro 管理脚本 ==="
+# 菜单
+while true; do
+    clear
+    echo "=== Lsky Pro 管理菜单 ==="
     echo "1. 安装 Lsky Pro"
     echo "2. 更新 Lsky Pro"
-    echo "3. 查看日志"
-    echo "4. 卸载 Lsky Pro"
-    read -p "请选择操作 [1-4]: " choice
-    case $choice in
+    echo "3. 卸载 Lsky Pro"
+    echo "0. 退出"
+    read -rp "请选择操作: " choice
+    case "$choice" in
         1) install_lsky ;;
         2) update_lsky ;;
-        3) view_logs ;;
-        4) uninstall_lsky ;;
-        *) echo "无效选择" ;;
+        3) uninstall_lsky ;;
+        0) exit 0 ;;
+        *) echo "无效选择，请重试。" ;;
     esac
-}
-
-menu
+    read -rp "按回车键继续..."
+done
