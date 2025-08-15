@@ -10,44 +10,22 @@ RESET="\033[0m"
 show_menu() {
     clear
     echo -e "${GREEN}====== VPS 一键安装管理菜单 ======${RESET}\n"
-
-    # 菜单项数组：编号|名称
-    menu_items=(
-        "01|安装管理 Docker" "02|MySQL 数据管理"
-        "03|Wallos 订阅" "04|Kuma-Mieru"
-        "05|彩虹聚合 DNS" "06|XTrafficDash"
-        "07|Nexus Terminal" "08|VPS 价值计算"
-        "09|密码管理 (Vaultwarden)" "10|Sun-Panel"
-        "11|SPlayer 音乐" "12|Vertex"
-        "13|AutoBangumi" "14|MoviePilot"
-        "15|Foxel" "16|STB 图床"
-        "17|OCI 抢机" "18|y探长"
-        "19|Sub-store" "20|Poste.io 邮局"
-        "21|WebSSH" "22|Openlist"
-        "23|qBittorrent v4.6.3" "24|音乐服务"
-        "25|兰空图床" "26|兰空图床 (无 MySQL)"
-        "88|更新脚本" "99|卸载脚本"
-    )
-
-    # 左列最大宽度，根据最长文字调整
-    left_width=32
-    space_between=4
-
-    for ((i=0; i<${#menu_items[@]}; i+=2)); do
-        left="${menu_items[i]}"
-        right="${menu_items[i+1]}"
-
-        left_no=${left%%|*}
-        left_name=${left#*|}
-        right_no=${right%%|*}
-        right_name=${right#*|}
-
-        # 输出左列+固定空格+右列
-        printf "${GREEN}%-3s %-*s%*s%-3s %s${RESET}\n" \
-            "$left_no." "$left_width" "$left_name" "$space_between" "" "$right_no." "$right_name"
-    done
-
-    printf "${GREEN}0. 退出${RESET}\n\n"
+    printf "${GREEN}%-36s %s${RESET}\n"  "01. 安装管理 Docker"          "02. MySQL 数据管理"
+    printf "${GREEN}%-36s %s${RESET}\n"  "03. Wallos 订阅"              "04. Kuma-Mieru"
+    printf "${GREEN}%-36s %s${RESET}\n"  "05. 彩虹聚合 DNS"             "06. XTrafficDash"
+    printf "${GREEN}%-36s %s${RESET}\n"  "07. Nexus Terminal"           "08. VPS 价值计算"
+    printf "${GREEN}%-36s %s${RESET}\n"  "09. 密码管理 (Vaultwarden)"   "10. Sun-Panel"
+    printf "${GREEN}%-36s %s${RESET}\n"  "11. SPlayer 音乐"             "12. Vertex"
+    printf "${GREEN}%-36s %s${RESET}\n"  "13. AutoBangumi"              "14. MoviePilot"
+    printf "${GREEN}%-36s %s${RESET}\n"  "15. Foxel"                    "16. STB 图床"
+    printf "${GREEN}%-36s %s${RESET}\n"  "17. OCI 抢机"                 "18. y探长"
+    printf "${GREEN}%-36s %s${RESET}\n"  "19. Sub-store"                "20. Poste.io 邮局"
+    printf "${GREEN}%-36s %s${RESET}\n"  "21. WebSSH"                   "22. Openlist"
+    printf "${GREEN}%-36s %s${RESET}\n"  "23. qBittorrent v4.6.3"       "24. 音乐服务"
+    printf "${GREEN}%-36s %s${RESET}\n"  "25. 兰空图床"                 "26. 兰空图床 (无 MySQL)"
+    printf "${GREEN}%-36s %s${RESET}\n"  "88. 更新脚本"                 "99. 卸载脚本"
+    printf "${GREEN}%-36s${RESET}\n"     "0. 退出"
+    echo
 }
 
 # ================== 功能函数 ==================
