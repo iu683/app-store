@@ -33,28 +33,53 @@ uninstall_script() {
 # ================== 菜单函数 ==================
 show_menu() {
     clear
-    # 彩色标题框
     echo -e "${CYAN}==============================================${RESET}"
     echo -e "${CYAN}          VPS 一键安装管理控制台           ${RESET}"
     echo -e "${CYAN}==============================================${RESET}"
     echo
-    # 双列显示，字体绿色
-    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "1." "安装管理 Docker" "2." "MySQL 数据管理"
-    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "3." "Wallos 订阅" "4." "Kuma-Mieru"
-    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "5." "彩虹聚合 DNS" "6." "XTrafficDash"
-    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "7." "Nexus Terminal" "8." "VPS 价值计算"
-    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "9." "密码管理 (Vaultwarden)" "10." "Sun-Panel"
-    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "11." "SPlayer 音乐" "12." "Vertex"
-    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "13." "AutoBangumi" "14." "MoviePilot"
-    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "15." "Foxel" "16." "STB 图床"
-    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "17." "OCI 抢机" "18." "y探长"
-    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "19." "Sub-store" "20." "Poste.io 邮局"
-    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "21." "WebSSH" "22." "Openlist"
-    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "23." "qBittorrent v4.6.3" "24." "音乐服务"
-    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "25." "兰空图床" "26." "兰空图床 (无 MySQL)"
-    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "88." "更新脚本" "99." "卸载脚本"
-    printf "${GREEN}%-4s %-30s${RESET}\n" "0." "退出"
-    echo
+
+    # 菜单项数组：编号|名称
+    menu_items=(
+        "1|安装管理 Docker" "2|MySQL 数据管理"
+        "3|Wallos 订阅" "4|Kuma-Mieru"
+        "5|彩虹聚合 DNS" "6|XTrafficDash"
+        "7|Nexus Terminal" "8|VPS 价值计算"
+        "9|密码管理 (Vaultwarden)" "10|Sun-Panel"
+        "11|SPlayer 音乐" "12|Vertex"
+        "13|AutoBangumi" "14|MoviePilot"
+        "15|Foxel" "16|STB 图床"
+        "17|OCI 抢机" "18|y探长"
+        "19|Sub-store" "20|Poste.io 邮局"
+        "21|WebSSH" "22|Openlist"
+        "23|qBittorrent v4.6.3" "24|音乐服务"
+        "25|兰空图床" "26|兰空图床 (无 MySQL)"
+        "88|更新脚本" "99|卸载脚本"
+    )
+
+    col_width=38
+
+    for ((i=0; i<${#menu_items[@]}; i+=2)); do
+        left="${menu_items[i]}"
+        right="${menu_items[i+1]}"
+
+        left_no=${left%%|*}
+        left_name=${left#*|}
+        right_no=${right%%|*}
+        right_name=${right#*|}
+
+        # 补零处理（编号 < 10 且不为 0）
+        [[ "$left_no" -lt 10 ]] && left_no=$(printf "%02d" "$left_no")
+        [[ "$right_no" -lt 10 ]] && right_no=$(printf "%02d" "$right_no")
+
+        left_len=${#left_no}+${#left_name}+3
+        left_padding=$((col_width - left_len))
+        (( left_padding<0 )) && left_padding=0
+
+        printf "${GREEN}%s. %s%*s" "$left_no" "$left_name" "$left_padding" " "
+        printf "%s. %s${RESET}\n" "$right_no" "$right_name"
+    done
+
+    printf "${GREEN}0. 退出${RESET}\n\n"
     read -p "请输入数字选择操作: " choice
 }
 
