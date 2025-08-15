@@ -1,26 +1,22 @@
 #!/bin/bash
+# 功能: 一键部署三合一音乐服务（Navidrome + Miniserve + MusicTagWeb）并生成管理菜单
 
-# 一键部署三合一音乐服务（最终版）
 PROJECT_DIR=~/music_server
 MUSIC_DIR=/data/music
 
 echo "========== 三合一音乐服务 一键部署 =========="
 
-# 1️⃣ 检查 Docker 是否安装
-if ! command -v docker &> /dev/null
-then
+# 1️⃣ 环境检测
+if ! command -v docker &> /dev/null; then
     echo "❌ Docker 未安装，请先安装 Docker！"
     exit 1
 fi
 
-# 2️⃣ 检查 Docker Compose 是否安装
-if ! command -v docker-compose &> /dev/null
-then
+if ! command -v docker-compose &> /dev/null; then
     echo "❌ Docker Compose 未安装，请先安装 Docker Compose！"
     exit 1
 fi
 
-# 3️⃣ 检查端口占用
 PORTS=(4533 4534 8002)
 for PORT in "${PORTS[@]}"; do
     if lsof -i:$PORT &> /dev/null; then
@@ -31,17 +27,13 @@ done
 
 echo "✅ 环境检查通过，Docker 和端口可用"
 
-# 4️⃣ 创建目录
-echo "创建项目目录: $PROJECT_DIR"
+# 2️⃣ 创建目录
 mkdir -p $PROJECT_DIR
 mkdir -p $MUSIC_DIR
 mkdir -p $PROJECT_DIR/data
-
-# 5️⃣ 进入项目目录
 cd $PROJECT_DIR || exit
 
-# 6️⃣ 生成 .env 文件
-echo "生成 .env 文件..."
+# 3️⃣ 生成 .env
 read -p "请输入 LastFM API Key: " ND_LASTFM_APIKEY
 read -p "请输入 LastFM Secret: " ND_LASTFM_SECRET
 read -p "请输入 Spotify ID: " ND_SPOTIFY_ID
@@ -49,6 +41,7 @@ read -p "请输入 Spotify Secret: " ND_SPOTIFY_SECRET
 read -p "设置 Miniserve 用户名: " MINSERVE_USER
 read -s -p "设置 Miniserve 密码: " MINSERVE_PASS
 echo
+
 cat > .env <<EOF
 ND_LASTFM_ENABLED=true
 ND_LASTFM_APIKEY=$ND_LASTFM_APIKEY
@@ -60,8 +53,7 @@ MINSERVE_USER=$MINSERVE_USER
 MINSERVE_PASS=$MINSERVE_PASS
 EOF
 
-# 7️⃣ 生成 docker-compose.yml
-echo "生成 docker-compose.yml..."
+# 4️⃣ 生成 docker-compose.yml
 cat > docker-compose.yml <<'EOF'
 version: "3.9"
 
@@ -125,8 +117,7 @@ services:
     restart: unless-stopped
 EOF
 
-# 8️⃣ 生成管理脚本 manage_music.sh
-echo "生成管理脚本 manage_music.sh..."
+# 5️⃣ 生成管理脚本
 cat > manage_music.sh <<'EOF'
 #!/bin/bash
 
@@ -212,11 +203,10 @@ EOF
 
 chmod +x manage_music.sh
 
-# 9️⃣ 启动服务
-echo "正在启动服务..."
+# 6️⃣ 启动服务
 docker-compose up -d
 
-# 10️⃣ 输出访问地址
+# 7️⃣ 输出访问地址
 echo "==============================="
 echo "🎵 三合一音乐服务已启动完成 🎵"
 echo "访问地址："
@@ -224,4 +214,8 @@ echo "Navidrome        : http://127.0.0.1:4533"
 echo "Miniserve         : http://127.0.0.1:4534 （账号: $MINSERVE_USER  密码: $MINSERVE_PASS）"
 echo "MusicTagWeb       : http://127.0.0.1:8002"
 echo "==============================="
-echo "你可以运行 ./manage_music.sh 来管理服务"
+echo "管理菜单将自动启动..."
+sleep 2
+
+# 8️⃣ 启动管理菜单
+./manage_music.sh
