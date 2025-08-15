@@ -149,6 +149,18 @@ uninstall_lsky() {
     fi
 }
 
+# 显示配置信息
+show_config() {
+    echo -e "${YELLOW}====== 当前 Lsky 配置 ======${RESET}"
+    echo "Lsky 数据库名称: $LSKY_DB_NAME"
+    echo "Lsky 数据库用户: $LSKY_DB_USER"
+    echo "Lsky 数据库密码: $LSKY_DB_PWD"
+    echo "Lsky 对外端口: $LSKY_PORT"
+    echo "Docker 网络名称: $NETWORK_NAME"
+    IP_ADDR=$(hostname -I | awk '{print $1}')
+    echo "访问地址: http://$IP_ADDR:$LSKY_PORT"
+}
+
 # 菜单
 while true; do
     echo -e "${GREEN}====== Lsky Pro 管理菜单 ======${RESET}"
@@ -156,6 +168,7 @@ while true; do
     echo "2. 更新 Lsky Pro"
     echo "3. 卸载 Lsky Pro"
     echo "4. 查看日志"
+    echo "5. 显示配置信息"
     echo "0. 退出"
     read -p "请输入选项: " choice
     case $choice in
@@ -170,6 +183,7 @@ while true; do
                 echo -e "${RED}日志文件不存在${RESET}"
             fi
             ;;
+        5) show_config ;;
         0) exit 0 ;;
         *) echo -e "${RED}无效选项${RESET}" ;;
     esac
