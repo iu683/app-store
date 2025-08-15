@@ -1,11 +1,11 @@
 #!/bin/bash
 # 一键部署三合一音乐服务 + 自动打开管理菜单
+# Docker Compose V2 格式，无 version 警告
 # 支持第一次安装和后续管理
 
 PROJECT_DIR=~/music_server
 MUSIC_DIR=/data/music
 COMPOSE_FILE="$PROJECT_DIR/docker-compose.yml"
-MANAGE_SCRIPT="$PROJECT_DIR/manage_music.sh"
 
 # ---------- 1️⃣ 检查环境 ----------
 for cmd in docker docker-compose; do
@@ -44,10 +44,8 @@ MINSERVE_USER=$MINSERVE_USER
 MINSERVE_PASS=$MINSERVE_PASS
 EOF
 
-    # 生成 docker-compose.yml
+    # 生成 docker-compose.yml（V2 格式，无 version）
     cat > docker-compose.yml <<EOF
-version: "3.9"
-
 networks:
   music_net:
     driver: bridge
@@ -118,7 +116,7 @@ EOF
     echo "========================================="
 }
 
-# ---------- 4️⃣ 定义管理菜单 ----------
+# ---------- 4️⃣ 管理菜单 ----------
 show_menu() {
     clear
     echo "==============================="
