@@ -5,28 +5,47 @@ GREEN="\033[32m"
 YELLOW="\033[33m"
 RED="\033[31m"
 RESET="\033[0m"
+BOLD="\033[1m"
 
 # ================== 菜单函数 ==================
 show_menu() {
     clear
-    echo -e "${GREEN}====== VPS 一键安装管理菜单 ======${RESET}\n"
-    # 使用更宽的间距（40个字符）来对齐菜单
-    printf "${GREEN}%-40s %s${RESET}\n"  "01. 安装管理 Docker"         "02. MySQL 数据管理"
-    printf "${GREEN}%-40s %s${RESET}\n"  "03. Wallos 订阅"             "04. Kuma-Mieru"
-    printf "${GREEN}%-40s %s${RESET}\n"  "05. 彩虹聚合 DNS"            "06. XTrafficDash"
-    printf "${GREEN}%-40s %s${RESET}\n"  "07. Nexus Terminal"          "08. VPS 价值计算"
-    printf "${GREEN}%-40s %s${RESET}\n"  "09. 密码管理 (Vaultwarden)"  "10. Sun-Panel"
-    printf "${GREEN}%-40s %s${RESET}\n"  "11. SPlayer 音乐"            "12. Vertex"
-    printf "${GREEN}%-40s %s${RESET}\n"  "13. AutoBangumi"             "14. MoviePilot"
-    printf "${GREEN}%-40s %s${RESET}\n"  "15. Foxel"                   "16. STB 图床"
-    printf "${GREEN}%-40s %s${RESET}\n"  "17. OCI 抢机"                "18. y探长"
-    printf "${GREEN}%-40s %s${RESET}\n"  "19. Sub-store"               "20. Poste.io 邮局"
-    printf "${GREEN}%-40s %s${RESET}\n"  "21. WebSSH"                  "22. Openlist"
-    printf "${GREEN}%-40s %s${RESET}\n"  "23. qBittorrent v4.6.3"      "24. 音乐服务"
-    printf "${GREEN}%-40s %s${RESET}\n"  "25. 兰空图床"                "26. 兰空图床 (无 MySQL)"
-    printf "${GREEN}%-40s %s${RESET}\n"  "88. 更新脚本"                "99. 卸载脚本"
-    printf "${GREEN}%-40s${RESET}\n"     "0. 退出"
-    echo
+    # 标题边框和文字都用绿色
+    echo -e "${GREEN}${BOLD}╔════════════════════════════════════════╗${RESET}"
+    echo -e "${GREEN}${BOLD}          Docker 应用管理菜单${RESET}"
+    echo -e "${GREEN}${BOLD}╚════════════════════════════════════════╝${RESET}\n"
+
+    # 菜单项全部改为绿色
+    echo -e "${GREEN}[01] 安装/管理 Docker${RESET}"
+    echo -e "${GREEN}[02] MySQL 数据管理${RESET}"
+    echo -e "${GREEN}[03] Wallos 订阅${RESET}"
+    echo -e "${GREEN}[04] Kuma-Mieru${RESET}"
+    echo -e "${GREEN}[05] 彩虹聚合 DNS${RESET}"
+    echo -e "${GREEN}[06] XTrafficDash${RESET}"
+    echo -e "${GREEN}[07] Nexus Terminal${RESET}"
+    echo -e "${GREEN}[08] VPS 价值计算${RESET}"
+    echo -e "${GREEN}[09] 密码管理 (Vaultwarden)${RESET}"
+    echo -e "${GREEN}[10] Sun-Panel${RESET}"
+    echo -e "${GREEN}[11] SPlayer 音乐${RESET}"
+    echo -e "${GREEN}[12] Vertex${RESET}"
+    echo -e "${GREEN}[13] AutoBangumi${RESET}"
+    echo -e "${GREEN}[14] MoviePilot${RESET}"
+    echo -e "${GREEN}[15] Foxel${RESET}"
+    echo -e "${GREEN}[16] STB 图床${RESET}"
+    echo -e "${GREEN}[17] OCI 抢机${RESET}"
+    echo -e "${GREEN}[18] y探长${RESET}"
+    echo -e "${GREEN}[19] Sub-store${RESET}"
+    echo -e "${GREEN}[20] Poste.io 邮局${RESET}"
+    echo -e "${GREEN}[21] WebSSH${RESET}"
+    echo -e "${GREEN}[22] Openlist${RESET}"
+    echo -e "${GREEN}[23] qBittorrent v4.6.3${RESET}"
+    echo -e "${GREEN}[24] 音乐服务${RESET}"
+    echo -e "${GREEN}[25] 兰空图床${RESET}"
+    echo -e "${GREEN}[26] 兰空图床 (无 MySQL)${RESET}\n"
+
+    echo -e "${GREEN}[88] 更新菜单脚本${RESET}"
+    echo -e "${GREEN}[99] 卸载菜单脚本${RESET}"
+    echo -e "${GREEN}[0] 退出${RESET}\n"
 }
 
 # ================== 功能函数 ==================
@@ -59,14 +78,16 @@ install_service() {
         25) bash <(curl -sL https://raw.githubusercontent.com/iu683/app-store/main/lsky_menu.sh) ;;
         26) bash <(curl -sL https://raw.githubusercontent.com/iu683/app-store/main/iuLsky.sh) ;;
         88) echo -e "${GREEN}正在更新脚本...${RESET}"
-            curl -fsSL -o "$0" https://raw.githubusercontent.com/iu683/app-store/main/vpsdocker.sh
-            chmod +x "$0"
+            tmp_file=$(mktemp)
+            curl -fsSL -o "$tmp_file" https://raw.githubusercontent.com/iu683/app-store/main/vpsdocker.sh
+            chmod +x "$tmp_file"
+            mv "$tmp_file" "$0"
             echo -e "${GREEN}更新完成!${RESET}" ;;
-        99) echo -e "${YELLOW}正在卸载脚本...${RESET}"
+        99) echo -e "${GREEN}正在卸载脚本...${RESET}"
             rm -rf "$HOME/vps-manager"
             echo -e "${GREEN}卸载完成!${RESET}"; exit 0 ;;
-        0) echo -e "${YELLOW}退出脚本...${RESET}"; exit 0 ;;
-        *) echo -e "${RED}无效选择，请重新输入!${RESET}" ;;
+        0) echo -e "${GREEN}退出脚本...${RESET}"; exit 0 ;;
+        *) echo -e "${GREEN}无效选择，请重新输入!${RESET}" ;;
     esac
 }
 
