@@ -14,7 +14,10 @@ PORT=8888
 # ================== 获取公网 IP ==================
 get_ip() {
     IP=$(curl -s https://api.ip.sb/ip)
-    if [ -z "$IP" ]; then
+    if [[ ! "$IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        IP=$(curl -s https://api.ipify.org)
+    fi
+    if [[ ! "$IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         IP=$(hostname -I | awk '{print $1}')
     fi
     echo "$IP"
@@ -52,7 +55,7 @@ show_menu() {
     echo -e "${GREEN}06.${RESET} 查看 WebSSH 日志"
     echo -e "${GREEN}07.${RESET} 更新 WebSSH 镜像并重启"
     echo -e "${GREEN}08.${RESET} 删除 WebSSH 容器"
-    echo -e "${GREEN}09.${RESET} 卸载 Docker 与 WebSSH"
+    echo -e "${GREEN}09.${RESET} 仅卸载 WebSSH（保留 Docker）"
     echo -e "${GREEN}10.${RESET} 设置菜单开机自启"
     echo -e "${GREEN}0.${RESET} 退出"
     echo -e "${CYAN}=======================================================${RESET}"
@@ -66,7 +69,7 @@ show_menu() {
         6) logs_container ;;
         7) update_container ;;
         8) remove_container ;;
-        9) uninstall_all ;;
+        9) remove_webssh_only ;;
         10) enable_autostart ;;
         0) exit 0 ;;
         *) echo -e "${RED}输入错误，请重新选择！${RESET}"; sleep 2; show_menu ;;
@@ -77,7 +80,6 @@ show_menu() {
 install_run() {
     check_port
 
-    # 安装 Docker（如果未安装）
     if ! command -v docker &>/dev/null; then
         echo -e "${YELLOW}检测到 Docker 未安装，正在安装...${RESET}"
         curl -fsSL https://get.docker.com | bash
@@ -85,22 +87,18 @@ install_run() {
         systemctl start docker
     fi
 
-    # 开放端口（firewalld）
     if command -v firewall-cmd &>/dev/null; then
         firewall-cmd --permanent --add-port=$PORT/tcp
         firewall-cmd --reload
     fi
 
-    # 删除已有容器
     if docker ps -a | grep -q $CONTAINER_NAME; then
         docker rm -f $CONTAINER_NAME
     fi
 
-    # 拉取镜像并运行
     docker pull $IMAGE_NAME
     docker run -d --name $CONTAINER_NAME --restart always -p $PORT:8888 $IMAGE_NAME
 
-    # 输出访问地址
     IP=$(get_ip)
     echo -e "${GREEN}WebSSH 已启动，访问: http://$IP:$PORT${RESET}"
     pause
@@ -136,14 +134,11 @@ logs_container() {
 
 update_container() {
     check_port
-
     echo -e "${YELLOW}正在拉取最新镜像...${RESET}"
     docker pull $IMAGE_NAME
-
     if docker ps -a | grep -q $CONTAINER_NAME; then
         docker rm -f $CONTAINER_NAME
     fi
-
     docker run -d --name $CONTAINER_NAME --restart always -p $PORT:8888 $IMAGE_NAME
 
     IP=$(get_ip)
@@ -157,19 +152,21 @@ remove_container() {
     pause
 }
 
-uninstall_all() {
-    read -p "确定要卸载 Docker 与 WebSSH 吗？(y/N): " confirm
-    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-        docker rm -f $CONTAINER_NAME 2>/dev/null
-        docker system prune -af
-        if command -v apt &>/dev/null; then
-            apt remove -y docker docker-engine docker.io containerd runc
-            apt autoremove -y
-        elif command -v yum &>/dev/null; then
-            yum remove -y docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-engine
-            yum autoremove -y
-        fi
-        echo -e "${GREEN}Docker 与 WebSSH 已完全卸载${RESET}"
+# ================== 仅卸载 WebSSH（保留 Docker） ==================
+remove_webssh_only() {
+    echo -e "${YELLOW}正在删除 WebSSH 容器和镜像...${RESET}"
+    if docker ps -a | grep -q $CONTAINER_NAME; then
+        docker rm -f $CONTAINER_NAME
+        echo -e "${GREEN}WebSSH 容器已删除${RESET}"
+    else
+        echo -e "${YELLOW}未检测到 WebSSH 容器${RESET}"
+    fi
+
+    if docker images | grep -q $(echo $IMAGE_NAME | awk -F':' '{print $1}'); then
+        docker rmi -f $IMAGE_NAME
+        echo -e "${GREEN}WebSSH 镜像已删除${RESET}"
+    else
+        echo -e "${YELLOW}未检测到 WebSSH 镜像${RESET}"
     fi
     pause
 }
