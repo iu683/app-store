@@ -25,7 +25,7 @@ log() {
     echo -e "$(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"
 }
 
-# 检查 MySQL 容器
+# 检查 MySQL 容器并测试连接
 check_mysql_container() {
     if ! docker ps -a --format '{{.Names}}' | grep -q "^${MYSQL_CONTAINER}$"; then
         log "[✘] 未检测到 MySQL 容器 ${MYSQL_CONTAINER}，请先创建 MySQL 容器"
@@ -38,25 +38,18 @@ check_mysql_container() {
         sleep 3
     fi
 
-    if ! docker exec ${MYSQL_CONTAINER} mysqladmin ping -uroot -p${MYSQL_ROOT_PWD} --silent &>/dev/null; then
-        log "[✘] 无法连接 MySQL，请检查 root 密码或容器状态"
-        exit 1
-    fi
-
-    log "[✔] MySQL 容器 ${MYSQL_CONTAINER} 正常运行并可连接"
-}
-
-# 等待 MySQL 启动
-wait_for_mysql() {
-    log "[...] 等待 MySQL 启动..."
+    # 等待 MySQL 完全启动
     for i in {1..30}; do
-        if docker exec ${MYSQL_CONTAINER} mysqladmin ping -uroot -p${MYSQL_ROOT_PWD} --silent &>/dev/null; then
-            log "[✔] MySQL 已启动"
+        docker exec ${MYSQL_CONTAINER} mysqladmin ping -uroot -p${MYSQL_ROOT_PWD} --silent &>/dev/null
+        if [ $? -eq 0 ]; then
+            log "[✔] MySQL 容器 ${MYSQL_CONTAINER} 正常运行并可连接"
             return
         fi
+        log "[...] 等待 MySQL 启动中 (${i}/30)"
         sleep 2
     done
-    log "[✘] MySQL 启动超时"
+
+    log "[✘] 无法连接 MySQL，请检查 root 密码或容器状态"
     exit 1
 }
 
@@ -123,12 +116,12 @@ EOF
 # 部署 Lsky Pro
 deploy_lsky() {
     check_mysql_container
-    wait_for_mysql
     create_lsky_db
     create_network
     create_docker_compose
     cd ${WORK_DIR} && docker-compose up -d
-    log "[✔] Lsky Pro 部署完成！访问：http://IP:${LSKY_PORT}"
+    IP_ADDR=$(hostname -I | awk '{print $1}')
+    log "[✔] Lsky Pro 部署完成！访问：http://$IP_ADDR:${LSKY_PORT}"
 }
 
 # 更新 Lsky Pro
@@ -159,6 +152,7 @@ show_config() {
     echo "Docker 网络名称: $NETWORK_NAME"
     IP_ADDR=$(hostname -I | awk '{print $1}')
     echo "访问地址: http://$IP_ADDR:$LSKY_PORT"
+    echo "MySQL 连接地址: $MYSQL_CONTAINER"
 }
 
 # 菜单
