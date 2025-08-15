@@ -6,7 +6,7 @@
 DATA_DIR="/root/sub-store-data"
 CONTAINER_NAME="sub-store"
 IMAGE_NAME="xream/sub-store"
-PORT="47888"
+PORT="3005"  # 改为3005端口
 
 # 获取公网 IP（优先用外部服务，失败则用hostname -I）
 get_public_ip() {
