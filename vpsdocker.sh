@@ -10,12 +10,10 @@ BOLD="\033[1m"
 # ================== 菜单函数 ==================
 show_menu() {
     clear
-    # 标题边框和文字都用绿色
     echo -e "${GREEN}${BOLD}╔════════════════════════════════════════╗${RESET}"
     echo -e "${GREEN}${BOLD}          Docker 应用管理菜单${RESET}"
     echo -e "${GREEN}${BOLD}╚════════════════════════════════════════╝${RESET}\n"
 
-    # 菜单项全部改为绿色
     echo -e "${GREEN}[01] 安装/管理 Docker${RESET}"
     echo -e "${GREEN}[02] MySQL 数据管理${RESET}"
     echo -e "${GREEN}[03] Wallos 订阅${RESET}"
@@ -77,17 +75,28 @@ install_service() {
         24) bash <(curl -sL https://raw.githubusercontent.com/iu683/app-store/main/music_full_auto.sh) ;;
         25) bash <(curl -sL https://raw.githubusercontent.com/iu683/app-store/main/lsky_menu.sh) ;;
         26) bash <(curl -sL https://raw.githubusercontent.com/iu683/app-store/main/iuLsky.sh) ;;
-        88) echo -e "${GREEN}正在更新脚本...${RESET}"
+        88)
+            echo -e "${GREEN}正在更新脚本...${RESET}"
             tmp_file=$(mktemp)
             curl -fsSL -o "$tmp_file" https://raw.githubusercontent.com/iu683/app-store/main/vpsdocker.sh
             chmod +x "$tmp_file"
-            mv "$tmp_file" "$0"
-            echo -e "${GREEN}更新完成!${RESET}" ;;
-        99) echo -e "${GREEN}正在卸载脚本...${RESET}"
+            cp "$tmp_file" "$HOME/vpsdocker.sh"
+            rm -f "$tmp_file"
+            echo -e "${GREEN}更新完成!${RESET}"
+            echo -e "${YELLOW}请下次用以下命令运行脚本:${RESET}"
+            echo -e "${GREEN}bash $HOME/vpsdocker.sh${RESET}"
+            ;;
+        99)
+            echo -e "${GREEN}正在卸载脚本...${RESET}"
             rm -rf "$HOME/vps-manager"
-            echo -e "${GREEN}卸载完成!${RESET}"; exit 0 ;;
-        0) echo -e "${GREEN}退出脚本...${RESET}"; exit 0 ;;
-        *) echo -e "${GREEN}无效选择，请重新输入!${RESET}" ;;
+            echo -e "${GREEN}卸载完成!${RESET}"; exit 0
+            ;;
+        0)
+            echo -e "${GREEN}退出脚本...${RESET}"; exit 0
+            ;;
+        *)
+            echo -e "${GREEN}无效选择，请重新输入!${RESET}"
+            ;;
     esac
 }
 
