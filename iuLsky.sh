@@ -2,7 +2,7 @@
 
 WORK_DIR="/wwwroot/docker/lsky"
 LOG_FILE="${WORK_DIR}/lsky_deploy.log"
-MYSQL_CONTAINER="db_mysql"
+MYSQL_CONTAINER="mysql8"          # 改为你实际的 MySQL 容器名
 MYSQL_ROOT_PWD="root123456"
 LSKY_DB_NAME="lsky"
 LSKY_DB_USER="lsky"
@@ -16,6 +16,10 @@ YELLOW="\033[33m"
 RED="\033[31m"
 RESET="\033[0m"
 
+# 创建日志目录和文件
+mkdir -p "$WORK_DIR"
+touch "$LOG_FILE"
+
 # 日志函数
 log() {
     echo -e "$(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"
@@ -23,19 +27,30 @@ log() {
 
 # 检查 MySQL 容器
 check_mysql_container() {
-    if docker ps -a --format '{{.Names}}' | grep -q "^${MYSQL_CONTAINER}$"; then
-        log "[✔] 检测到 MySQL 容器 ${MYSQL_CONTAINER}"
-    else
+    if ! docker ps -a --format '{{.Names}}' | grep -q "^${MYSQL_CONTAINER}$"; then
         log "[✘] 未检测到 MySQL 容器 ${MYSQL_CONTAINER}，请先创建 MySQL 容器"
         exit 1
     fi
+
+    if ! docker ps --format '{{.Names}}' | grep -q "^${MYSQL_CONTAINER}$"; then
+        log "[!] MySQL 容器 ${MYSQL_CONTAINER} 未运行，正在启动..."
+        docker start ${MYSQL_CONTAINER}
+        sleep 3
+    fi
+
+    if ! docker exec ${MYSQL_CONTAINER} mysqladmin ping -uroot -p${MYSQL_ROOT_PWD} --silent &>/dev/null; then
+        log "[✘] 无法连接 MySQL，请检查 root 密码或容器状态"
+        exit 1
+    fi
+
+    log "[✔] MySQL 容器 ${MYSQL_CONTAINER} 正常运行并可连接"
 }
 
 # 等待 MySQL 启动
 wait_for_mysql() {
     log "[...] 等待 MySQL 启动..."
     for i in {1..30}; do
-        if docker exec ${MYSQL_CONTAINER} mysqladmin ping -h localhost -p${MYSQL_ROOT_PWD} --silent &>/dev/null; then
+        if docker exec ${MYSQL_CONTAINER} mysqladmin ping -uroot -p${MYSQL_ROOT_PWD} --silent &>/dev/null; then
             log "[✔] MySQL 已启动"
             return
         fi
