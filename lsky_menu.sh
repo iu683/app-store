@@ -88,8 +88,7 @@ EOF
     echo "数据库名: ${MYSQL_DATABASE}"
     echo "数据库用户: ${MYSQL_USER}"
     echo "数据库密码: ${MYSQL_PASSWORD}"
-    echo "=== 查看实时日志（按 Ctrl+C 退出）==="
-    docker logs -f ${LSKY_CONTAINER}
+    echo "使用菜单中的“查看日志”选项来查看运行日志"
 }
 
 # 更新 Lsky Pro
@@ -108,6 +107,22 @@ uninstall_lsky() {
     echo "Lsky Pro 已卸载！"
 }
 
+# 查看日志
+view_logs() {
+    docker logs -f ${LSKY_CONTAINER}
+}
+
+# 查看访问信息
+view_info() {
+    SERVER_IP=$(curl -s ifconfig.me)
+    echo "=== Lsky Pro 信息 ==="
+    echo "访问地址: http://${SERVER_IP}:${LSKY_PORT}"
+    echo "数据库容器: ${MYSQL_CONTAINER}"
+    echo "数据库名: ${MYSQL_DATABASE}"
+    echo "数据库用户: ${MYSQL_USER}"
+    echo "数据库密码: ${MYSQL_PASSWORD}"
+}
+
 # 菜单
 while true; do
     clear
@@ -115,12 +130,16 @@ while true; do
     echo "1. 安装 Lsky Pro"
     echo "2. 更新 Lsky Pro"
     echo "3. 卸载 Lsky Pro"
+    echo "4. 查看日志"
+    echo "5. 查看访问信息"
     echo "0. 退出"
     read -rp "请选择操作: " choice
     case "$choice" in
         1) install_lsky ;;
         2) update_lsky ;;
         3) uninstall_lsky ;;
+        4) view_logs ;;
+        5) view_info ;;
         0) exit 0 ;;
         *) echo "无效选择，请重试。" ;;
     esac
