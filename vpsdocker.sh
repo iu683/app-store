@@ -88,8 +88,11 @@ install_service() {
             ;;
         99)
             echo -e "${GREEN}正在卸载脚本...${RESET}"
-            rm -rf "$HOME/vps-manager"
-            echo -e "${GREEN}卸载完成!${RESET}"; exit 0
+            # 删除当前运行的脚本文件
+            SCRIPT_PATH=$(realpath "$0")
+            rm -f "$SCRIPT_PATH"
+            echo -e "${GREEN}卸载完成! 脚本已删除.${RESET}"
+            exit 0
             ;;
         0)
             echo -e "${GREEN}退出脚本...${RESET}"; exit 0
