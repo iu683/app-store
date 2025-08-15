@@ -87,7 +87,7 @@ install_service() {
         99)
             echo -e "${GREEN}正在卸载脚本...${RESET}"
             rm -f "$SCRIPT_PATH"
-            echo -e "${GREEN}卸载完成! 脚本及快捷键已清除.${RESET}"
+            echo -e "${GREEN}卸载完成!${RESET}"
             exit 0
             ;;
         0)
@@ -103,23 +103,8 @@ install_service() {
 # ================== 主循环 ==================
 while true; do
     show_menu
-    read -p "请输入编号或快捷键: " choice
-
-    case "$choice" in
-        [dD])
-            if [[ -f "$SCRIPT_PATH" ]]; then
-                echo -e "${GREEN}正在运行更新后的脚本...${RESET}"
-                bash "$SCRIPT_PATH"
-                exit 0
-            else
-                echo -e "${RED}更新后的脚本不存在，请先使用[88]更新!${RESET}"
-            fi
-            ;;
-        *)
-            install_service "$choice"
-            ;;
-    esac
-
+    read -p "请输入编号: " choice
+    install_service "$choice"
     echo -e "\n按 Enter 返回菜单..."
     read
 done
