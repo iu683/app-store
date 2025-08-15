@@ -1,12 +1,17 @@
 #!/bin/bash
 # Sub-Store 一键管理脚本
 # 作者: ChatGPT
-# 说明: 支持安装、启动、停止、重启、日志、更新、卸载
+# 说明: 支持安装、启动、停止、重启、日志、更新、卸载 + 自动显示公网地址
 
 DATA_DIR="/root/sub-store-data"
 CONTAINER_NAME="sub-store"
 IMAGE_NAME="xream/sub-store"
-PORT="3001"
+PORT="47888"
+
+# 获取公网 IP（优先用外部服务，失败则用hostname -I）
+get_public_ip() {
+    curl -s ipv4.ip.sb || curl -s ifconfig.me || hostname -I | awk '{print $1}'
+}
 
 # 生成随机路径
 generate_path() {
@@ -20,7 +25,9 @@ install_substore() {
     fi
 
     RANDOM_PATH="/$(generate_path)"
+    PUBLIC_IP=$(get_public_ip)
     echo "✅  启动路径: ${RANDOM_PATH}"
+    echo "🌐 检测到公网 IP: ${PUBLIC_IP}"
 
     mkdir -p "$DATA_DIR"
     docker run -d \
@@ -32,7 +39,11 @@ install_substore() {
         -v ${DATA_DIR}:/opt/app/data \
         ${IMAGE_NAME}
 
-    echo "🚀 Sub-Store 已启动，请访问: http://<服务器IP>:${PORT}${RANDOM_PATH}"
+    echo "🚀 Sub-Store 已启动"
+    echo "--------------------------------------"
+    echo "🌍 Web面板地址: http://${PUBLIC_IP}:${PORT}"
+    echo "🔗 API地址: http://${PUBLIC_IP}:${PORT}${RANDOM_PATH}"
+    echo "--------------------------------------"
 }
 
 stop_substore() {
