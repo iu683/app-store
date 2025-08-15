@@ -43,7 +43,8 @@ show_menu() {
 
     echo -e "${GREEN}[88] 更新菜单脚本${RESET}"
     echo -e "${GREEN}[99] 卸载菜单脚本${RESET}"
-    echo -e "${GREEN}[0] 退出${RESET}\n"
+    echo -e "${GREEN}[0] 退出${RESET}"
+    echo -e "${YELLOW}[d/D] 快捷键运行更新后的脚本${RESET}\n"
 }
 
 # ================== 功能函数 ==================
@@ -83,19 +84,18 @@ install_service() {
             cp "$tmp_file" "$HOME/vpsdocker.sh"
             rm -f "$tmp_file"
             echo -e "${GREEN}更新完成!${RESET}"
-            echo -e "${YELLOW}请下次用以下命令运行脚本:${RESET}"
-            echo -e "${GREEN}bash $HOME/vpsdocker.sh${RESET}"
+            echo -e "${YELLOW}下次可使用快捷键 d/D 运行更新后的脚本${RESET}"
             ;;
         99)
             echo -e "${GREEN}正在卸载脚本...${RESET}"
-            # 删除当前运行的脚本文件
             SCRIPT_PATH=$(realpath "$0")
             rm -f "$SCRIPT_PATH"
-            echo -e "${GREEN}卸载完成! 脚本已删除.${RESET}"
+            echo -e "${GREEN}卸载完成! 脚本及快捷键已清除.${RESET}"
             exit 0
             ;;
         0)
-            echo -e "${GREEN}退出脚本...${RESET}"; exit 0
+            echo -e "${GREEN}退出脚本...${RESET}"
+            exit 0
             ;;
         *)
             echo -e "${GREEN}无效选择，请重新输入!${RESET}"
@@ -106,8 +106,23 @@ install_service() {
 # ================== 主循环 ==================
 while true; do
     show_menu
-    read -p "请输入编号: " choice
-    install_service $choice
+    read -p "请输入编号或快捷键: " choice
+
+    case "$choice" in
+        [dD])
+            if [[ -f "$HOME/vpsdocker.sh" ]]; then
+                echo -e "${GREEN}正在运行更新后的脚本...${RESET}"
+                bash "$HOME/vpsdocker.sh"
+                exit 0
+            else
+                echo -e "${RED}更新后的脚本不存在，请先使用[88]更新!${RESET}"
+            fi
+            ;;
+        *)
+            install_service "$choice"
+            ;;
+    esac
+
     echo -e "\n按 Enter 返回菜单..."
     read
 done
