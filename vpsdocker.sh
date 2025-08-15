@@ -10,21 +10,22 @@ RESET="\033[0m"
 show_menu() {
     clear
     echo -e "${GREEN}====== VPS 一键安装管理菜单 ======${RESET}\n"
-    printf "${GREEN}%-36s %s${RESET}\n"  "01. 安装管理 Docker"          "02. MySQL 数据管理"
-    printf "${GREEN}%-36s %s${RESET}\n"  "03. Wallos 订阅"              "04. Kuma-Mieru"
-    printf "${GREEN}%-36s %s${RESET}\n"  "05. 彩虹聚合 DNS"             "06. XTrafficDash"
-    printf "${GREEN}%-36s %s${RESET}\n"  "07. Nexus Terminal"           "08. VPS 价值计算"
-    printf "${GREEN}%-36s %s${RESET}\n"  "09. 密码管理 (Vaultwarden)"   "10. Sun-Panel"
-    printf "${GREEN}%-36s %s${RESET}\n"  "11. SPlayer 音乐"             "12. Vertex"
-    printf "${GREEN}%-36s %s${RESET}\n"  "13. AutoBangumi"              "14. MoviePilot"
-    printf "${GREEN}%-36s %s${RESET}\n"  "15. Foxel"                    "16. STB 图床"
-    printf "${GREEN}%-36s %s${RESET}\n"  "17. OCI 抢机"                 "18. y探长"
-    printf "${GREEN}%-36s %s${RESET}\n"  "19. Sub-store"                "20. Poste.io 邮局"
-    printf "${GREEN}%-36s %s${RESET}\n"  "21. WebSSH"                   "22. Openlist"
-    printf "${GREEN}%-36s %s${RESET}\n"  "23. qBittorrent v4.6.3"       "24. 音乐服务"
-    printf "${GREEN}%-36s %s${RESET}\n"  "25. 兰空图床"                 "26. 兰空图床 (无 MySQL)"
-    printf "${GREEN}%-36s %s${RESET}\n"  "88. 更新脚本"                 "99. 卸载脚本"
-    printf "${GREEN}%-36s${RESET}\n"     "0. 退出"
+    # 使用更宽的间距（40个字符）来对齐菜单
+    printf "${GREEN}%-40s %s${RESET}\n"  "01. 安装管理 Docker"         "02. MySQL 数据管理"
+    printf "${GREEN}%-40s %s${RESET}\n"  "03. Wallos 订阅"             "04. Kuma-Mieru"
+    printf "${GREEN}%-40s %s${RESET}\n"  "05. 彩虹聚合 DNS"            "06. XTrafficDash"
+    printf "${GREEN}%-40s %s${RESET}\n"  "07. Nexus Terminal"          "08. VPS 价值计算"
+    printf "${GREEN}%-40s %s${RESET}\n"  "09. 密码管理 (Vaultwarden)"  "10. Sun-Panel"
+    printf "${GREEN}%-40s %s${RESET}\n"  "11. SPlayer 音乐"            "12. Vertex"
+    printf "${GREEN}%-40s %s${RESET}\n"  "13. AutoBangumi"             "14. MoviePilot"
+    printf "${GREEN}%-40s %s${RESET}\n"  "15. Foxel"                   "16. STB 图床"
+    printf "${GREEN}%-40s %s${RESET}\n"  "17. OCI 抢机"                "18. y探长"
+    printf "${GREEN}%-40s %s${RESET}\n"  "19. Sub-store"               "20. Poste.io 邮局"
+    printf "${GREEN}%-40s %s${RESET}\n"  "21. WebSSH"                  "22. Openlist"
+    printf "${GREEN}%-40s %s${RESET}\n"  "23. qBittorrent v4.6.3"      "24. 音乐服务"
+    printf "${GREEN}%-40s %s${RESET}\n"  "25. 兰空图床"                "26. 兰空图床 (无 MySQL)"
+    printf "${GREEN}%-40s %s${RESET}\n"  "88. 更新脚本"                "99. 卸载脚本"
+    printf "${GREEN}%-40s${RESET}\n"     "0. 退出"
     echo
 }
 
@@ -58,12 +59,12 @@ install_service() {
         25) bash <(curl -sL https://raw.githubusercontent.com/iu683/app-store/main/lsky_menu.sh) ;;
         26) bash <(curl -sL https://raw.githubusercontent.com/iu683/app-store/main/iuLsky.sh) ;;
         88) echo -e "${GREEN}正在更新脚本...${RESET}"
-             curl -fsSL -o "$0" https://raw.githubusercontent.com/iu683/app-store/main/vpsdocker.sh
-             chmod +x "$0"
-             echo -e "${GREEN}更新完成!${RESET}" ;;
+            curl -fsSL -o "$0" https://raw.githubusercontent.com/iu683/app-store/main/vpsdocker.sh
+            chmod +x "$0"
+            echo -e "${GREEN}更新完成!${RESET}" ;;
         99) echo -e "${YELLOW}正在卸载脚本...${RESET}"
-             rm -rf "$HOME/vps-manager"
-             echo -e "${GREEN}卸载完成!${RESET}"; exit 0 ;;
+            rm -rf "$HOME/vps-manager"
+            echo -e "${GREEN}卸载完成!${RESET}"; exit 0 ;;
         0) echo -e "${YELLOW}退出脚本...${RESET}"; exit 0 ;;
         *) echo -e "${RED}无效选择，请重新输入!${RESET}" ;;
     esac
