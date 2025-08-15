@@ -1,113 +1,79 @@
 #!/bin/bash
-#========================================
-# Lsky Pro 部署 & 管理 菜单脚本（自动配置数据库）
-# Author: xiaoxim 专用
-#========================================
+
+# ==============================
+# Lsky Pro 管理脚本
+# 安装 / 更新 / 卸载 / 查看日志 / 自动端口检测
+# ==============================
+
+# 颜色输出函数
+green() { echo -e "\033[32m$1\033[0m"; }
+red()   { echo -e "\033[31m$1\033[0m"; }
+yellow(){ echo -e "\033[33m$1\033[0m"; }
 
 WORK_DIR="/wwwroot/docker/lsky"
-LSKY_PORT=1128
+NETWORK_NAME="lsky_net"
 LSKY_CONTAINER="lskypro"
+MYSQL_CONTAINER="mysql-lsky"
 
 mkdir -p "$WORK_DIR"
-cd "$WORK_DIR" || exit
 
-# 彩色输出
-green()  { echo -e "\033[32m$1\033[0m"; }
-yellow() { echo -e "\033[33m$1\033[0m"; }
-red()    { echo -e "\033[31m$1\033[0m"; }
-get_ip() { hostname -I 2>/dev/null | awk '{print $1}'; }
-
-# 检查端口
-check_port() {
-    if lsof -i:"$LSKY_PORT" 2>/dev/null | grep -q LISTEN; then
-        red "端口 $LSKY_PORT 已被占用，请修改脚本中的 LSKY_PORT 后重试！"
-        exit 1
-    fi
+# 获取外网 IP
+get_ip() {
+    curl -s ipv4.ip.sb || curl -s ifconfig.me || curl -s ipinfo.io/ip
 }
 
-# 自动在 MySQL 创建数据库和用户
+# 检测可用端口（默认 1128）
+get_free_port() {
+    local port=$1
+    while ss -tuln | grep -q ":$port "; do
+        ((port++))
+    done
+    echo "$port"
+}
+
+# 初始化 MySQL 数据库和用户
 init_mysql_user() {
     local mysql_container=$1
     local root_pass=$2
     local db_name=$3
     local user=$4
     local pass=$5
-    green "初始化 MySQL 数据库和用户..."
+
+    green "等待 MySQL 容器启动..."
+    for i in {1..30}; do
+        if docker exec "$mysql_container" mysqladmin ping -uroot -p"$root_pass" --silent &>/dev/null; then
+            green "MySQL 已启动，开始初始化数据库..."
+            break
+        fi
+        sleep 2
+    done
+
     docker exec -i "$mysql_container" mysql -uroot -p"$root_pass" <<EOF
-CREATE DATABASE IF NOT EXISTS \`$db_name\`;
+CREATE DATABASE IF NOT EXISTS \`$db_name\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$pass';
 GRANT ALL PRIVILEGES ON \`$db_name\`.* TO '$user'@'%';
 FLUSH PRIVILEGES;
 EOF
 }
 
-# 生成 docker-compose.yml (方案A)
-generate_compose_a() {
+# 安装 Lsky Pro（新建 MySQL）
+install_with_mysql() {
+    cd "$WORK_DIR" || exit 1
     read -rp "请输入 MySQL root 密码: " MYSQL_ROOT_PASSWORD
     read -rp "请输入数据库名称: " MYSQL_DATABASE
-    read -rp "请输入数据库用户名: " MYSQL_USER
-    read -rp "请输入数据库密码: " MYSQL_PASS
+    read -rp "请输入新建的数据库用户名: " MYSQL_USER
+    read -rp "请输入该用户密码: " MYSQL_PASS
 
-cat > docker-compose.yml <<EOF
+    WEB_PORT=$(get_free_port 1128)
+    green "使用端口: $WEB_PORT"
+
+    cat > docker-compose.yml <<EOF
 version: '3'
 services:
-  lskypro:
+  ${LSKY_CONTAINER}:
     image: halcyonazure/lsky-pro-docker:latest
     restart: unless-stopped
-    container_name: ${LSKY_CONTAINER}
-    environment:
-      - WEB_PORT=8089
-      - DB_HOST=mysql-lsky
-      - DB_DATABASE=${MYSQL_DATABASE}
-      - DB_USERNAME=${MYSQL_USER}
-      - DB_PASSWORD=${MYSQL_PASS}
-    volumes:
-      - ./data:/var/www/html/
-    ports:
-      - "${LSKY_PORT}:8089"
-    networks:
-      - lsky-net
-
-  mysql-lsky:
-    image: mysql:5.7.22
-    restart: unless-stopped
-    container_name: mysql-lsky
-    command: --default-authentication-plugin=mysql_native_password
-    volumes:
-      - ./mysql/data:/var/lib/mysql
-      - ./mysql/conf:/etc/mysql
-      - ./mysql/log:/var/log/mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-    networks:
-      - lsky-net
-
-networks:
-  lsky-net: {}
-EOF
-
-    docker-compose up -d
-    sleep 10
-    init_mysql_user "mysql-lsky" "$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" "$MYSQL_USER" "$MYSQL_PASS"
-}
-
-# 生成 docker-compose.yml (方案B)
-generate_compose_b() {
-    read -rp "请输入已有 MySQL 容器名: " MYSQL_CONTAINER
-    read -rp "请输入 MySQL root 密码: " MYSQL_ROOT_PASSWORD
-    read -rp "请输入数据库名称: " MYSQL_DATABASE
-    read -rp "请输入数据库用户名: " MYSQL_USER
-    read -rp "请输入数据库密码: " MYSQL_PASS
-
-    docker network create lsky_net &>/dev/null
-    docker network connect lsky_net "$MYSQL_CONTAINER" &>/dev/null
-
-cat > docker-compose.yml <<EOF
-version: '3'
-services:
-  lskypro:
-    image: halcyonazure/lsky-pro-docker:latest
-    restart: unless-stopped
+    hostname: lskypro
     container_name: ${LSKY_CONTAINER}
     environment:
       - WEB_PORT=8089
@@ -118,82 +84,126 @@ services:
     volumes:
       - ./data:/var/www/html/
     ports:
-      - "${LSKY_PORT}:8089"
+      - "${WEB_PORT}:8089"
     networks:
-      - lsky_net
+      - ${NETWORK_NAME}
+
+  ${MYSQL_CONTAINER}:
+    image: mysql:5.7.22
+    restart: unless-stopped
+    hostname: ${MYSQL_CONTAINER}
+    container_name: ${MYSQL_CONTAINER}
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+      - ./mysql/conf:/etc/mysql
+      - ./mysql/log:/var/log/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    networks:
+      - ${NETWORK_NAME}
 
 networks:
-  lsky_net:
+  ${NETWORK_NAME}: {}
+EOF
+
+    docker-compose up -d
+    init_mysql_user "${MYSQL_CONTAINER}" "$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" "$MYSQL_USER" "$MYSQL_PASS"
+
+    green "部署完成！访问地址: http://$(get_ip):${WEB_PORT}"
+}
+
+# 安装 Lsky Pro（已有 MySQL）
+install_with_existing_mysql() {
+    cd "$WORK_DIR" || exit 1
+    read -rp "请输入 MySQL 容器名称: " MYSQL_CONTAINER_EXIST
+    read -rp "请输入数据库名称: " MYSQL_DATABASE
+    read -rp "请输入数据库用户名: " MYSQL_USER
+    read -rp "请输入数据库密码: " MYSQL_PASS
+
+    WEB_PORT=$(get_free_port 1128)
+    green "使用端口: $WEB_PORT"
+
+    docker network create "${NETWORK_NAME}" >/dev/null 2>&1 || true
+    docker network connect "${NETWORK_NAME}" "${MYSQL_CONTAINER_EXIST}" || true
+
+    cat > docker-compose.yml <<EOF
+version: '3'
+services:
+  ${LSKY_CONTAINER}:
+    image: halcyonazure/lsky-pro-docker:latest
+    restart: unless-stopped
+    hostname: lskypro
+    container_name: ${LSKY_CONTAINER}
+    environment:
+      - WEB_PORT=8089
+      - DB_HOST=${MYSQL_CONTAINER_EXIST}
+      - DB_DATABASE=${MYSQL_DATABASE}
+      - DB_USERNAME=${MYSQL_USER}
+      - DB_PASSWORD=${MYSQL_PASS}
+    volumes:
+      - ./data:/var/www/html/
+    ports:
+      - "${WEB_PORT}:8089"
+    networks:
+      - ${NETWORK_NAME}
+
+networks:
+  ${NETWORK_NAME}:
     external: true
 EOF
 
     docker-compose up -d
-    init_mysql_user "$MYSQL_CONTAINER" "$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" "$MYSQL_USER" "$MYSQL_PASS"
-}
-
-# 启动完成提示
-finish_msg() {
-    local ip=$(get_ip)
-    local pub_ip=$(curl -s ifconfig.me || echo "公网IP获取失败")
-    green "部署完成！"
-    echo "内网访问: http://${ip}:${LSKY_PORT}"
-    echo "公网访问: http://${pub_ip}:${LSKY_PORT}"
+    green "部署完成！访问地址: http://$(get_ip):${WEB_PORT}"
 }
 
 # 更新 Lsky Pro
 update_lsky() {
-    green "更新 Lsky Pro..."
-    docker-compose pull lskypro
+    cd "$WORK_DIR" || exit 1
+    docker-compose pull
     docker-compose up -d
-    green "更新完成！"
+    green "Lsky Pro 已更新完成！访问地址: http://$(get_ip):$(grep 'ports:' -A 1 docker-compose.yml | tail -n 1 | awk -F':' '{print $1}' | tr -d ' -')"
 }
 
 # 卸载 Lsky Pro
 uninstall_lsky() {
-    read -rp "是否保留数据? [y/N]: " keep
+    cd "$WORK_DIR" || exit 1
     docker-compose down
-    if [[ ! "$keep" =~ ^[Yy]$ ]]; then
+    read -rp "是否删除数据文件？[y/N]: " confirm
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
         rm -rf "$WORK_DIR"
-        green "已删除所有文件和数据。"
-    else
-        green "已卸载 Lsky Pro，但保留了数据。"
+        green "已删除 Lsky Pro 数据文件！"
     fi
+    green "Lsky Pro 已卸载！"
+}
+
+# 查看日志
+show_logs() {
+    docker logs -f ${LSKY_CONTAINER}
 }
 
 # 主菜单
-while true; do
-    echo ""
-    green "===== Lsky Pro 管理菜单 ====="
-    echo "1) 部署 Lsky Pro + MySQL (新建)"
-    echo "2) 部署 Lsky Pro (连接已有 MySQL)"
-    echo "3) 更新 Lsky Pro"
-    echo "4) 卸载 Lsky Pro"
-    echo "5) 退出"
-    echo "============================="
-    read -rp "请选择操作 [1-5]: " choice
+main_menu() {
+    clear
+    green "========== Lsky Pro 管理菜单 =========="
+    echo "1. 安装 Lsky Pro（新建 MySQL）"
+    echo "2. 安装 Lsky Pro（已有 MySQL）"
+    echo "3. 更新 Lsky Pro"
+    echo "4. 卸载 Lsky Pro"
+    echo "5. 查看 Lsky Pro 日志"
+    echo "======================================"
+    read -rp "请选择 [1-5]: " choice
 
-    case "$choice" in
-        1)
-            check_port
-            generate_compose_a
-            finish_msg
-            ;;
-        2)
-            check_port
-            generate_compose_b
-            finish_msg
-            ;;
-        3)
-            update_lsky
-            ;;
-        4)
-            uninstall_lsky
-            ;;
-        5)
-            exit 0
-            ;;
-        *)
-            red "无效选择，请重新输入！"
-            ;;
+    docker network create "${NETWORK_NAME}" >/dev/null 2>&1 || true
+
+    case $choice in
+        1) install_with_mysql ;;
+        2) install_with_existing_mysql ;;
+        3) update_lsky ;;
+        4) uninstall_lsky ;;
+        5) show_logs ;;
+        *) red "无效选择" ;;
     esac
-done
+}
+
+main_menu
