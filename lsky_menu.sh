@@ -1,53 +1,66 @@
 #!/bin/bash
 #========================================
-# Lsky Pro 部署 & 管理 菜单脚本
+# Lsky Pro 部署 & 管理 菜单脚本（自动配置数据库）
 # Author: xiaoxim 专用
 #========================================
 
 WORK_DIR="/wwwroot/docker/lsky"
-MYSQL_CONTAINER_NAME="db_mysql" # 已有 MySQL 容器名（方案B用）
 LSKY_PORT=1128
-LSKY_SERVICE_NAME="lskypro"
+LSKY_CONTAINER="lskypro"
 
 mkdir -p "$WORK_DIR"
 cd "$WORK_DIR" || exit
 
-# 彩色输出函数
+# 彩色输出
 green()  { echo -e "\033[32m$1\033[0m"; }
 yellow() { echo -e "\033[33m$1\033[0m"; }
 red()    { echo -e "\033[31m$1\033[0m"; }
+get_ip() { hostname -I 2>/dev/null | awk '{print $1}'; }
 
-# 获取本机IP
-get_ip() {
-    hostname -I 2>/dev/null | awk '{print $1}'
+# 检查端口
+check_port() {
+    if lsof -i:"$LSKY_PORT" 2>/dev/null | grep -q LISTEN; then
+        red "端口 $LSKY_PORT 已被占用，请修改脚本中的 LSKY_PORT 后重试！"
+        exit 1
+    fi
 }
 
-# 检查端口是否占用
-check_port() {
-    if command -v lsof &>/dev/null; then
-        if lsof -i:"$LSKY_PORT" | grep -q LISTEN; then
-            red "端口 $LSKY_PORT 已被占用，请修改脚本中的 LSKY_PORT 变量后重试！"
-            exit 1
-        fi
-    else
-        yellow "未检测到 lsof，自动安装中..."
-        apt update && apt install -y lsof
-        check_port
-    fi
+# 自动在 MySQL 创建数据库和用户
+init_mysql_user() {
+    local mysql_container=$1
+    local root_pass=$2
+    local db_name=$3
+    local user=$4
+    local pass=$5
+    green "初始化 MySQL 数据库和用户..."
+    docker exec -i "$mysql_container" mysql -uroot -p"$root_pass" <<EOF
+CREATE DATABASE IF NOT EXISTS \`$db_name\`;
+CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$pass';
+GRANT ALL PRIVILEGES ON \`$db_name\`.* TO '$user'@'%';
+FLUSH PRIVILEGES;
+EOF
 }
 
 # 生成 docker-compose.yml (方案A)
 generate_compose_a() {
+    read -rp "请输入 MySQL root 密码: " MYSQL_ROOT_PASSWORD
+    read -rp "请输入数据库名称: " MYSQL_DATABASE
+    read -rp "请输入数据库用户名: " MYSQL_USER
+    read -rp "请输入数据库密码: " MYSQL_PASS
+
 cat > docker-compose.yml <<EOF
 version: '3'
 services:
   lskypro:
     image: halcyonazure/lsky-pro-docker:latest
     restart: unless-stopped
-    hostname: lskypro
-    container_name: lskypro
+    container_name: ${LSKY_CONTAINER}
     environment:
       - WEB_PORT=8089
+      - DB_HOST=mysql-lsky
+      - DB_DATABASE=${MYSQL_DATABASE}
+      - DB_USERNAME=${MYSQL_USER}
+      - DB_PASSWORD=${MYSQL_PASS}
     volumes:
       - ./data:/var/www/html/
     ports:
@@ -58,7 +71,6 @@ services:
   mysql-lsky:
     image: mysql:5.7.22
     restart: unless-stopped
-    hostname: mysql-lsky
     container_name: mysql-lsky
     command: --default-authentication-plugin=mysql_native_password
     volumes:
@@ -66,20 +78,29 @@ services:
       - ./mysql/conf:/etc/mysql
       - ./mysql/log:/var/log/mysql
     environment:
-      MYSQL_ROOT_PASSWORD: 123456
-      MYSQL_DATABASE: lsky-data
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     networks:
       - lsky-net
 
 networks:
   lsky-net: {}
 EOF
+
+    docker-compose up -d
+    sleep 10
+    init_mysql_user "mysql-lsky" "$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" "$MYSQL_USER" "$MYSQL_PASS"
 }
 
 # 生成 docker-compose.yml (方案B)
 generate_compose_b() {
+    read -rp "请输入已有 MySQL 容器名: " MYSQL_CONTAINER
+    read -rp "请输入 MySQL root 密码: " MYSQL_ROOT_PASSWORD
+    read -rp "请输入数据库名称: " MYSQL_DATABASE
+    read -rp "请输入数据库用户名: " MYSQL_USER
+    read -rp "请输入数据库密码: " MYSQL_PASS
+
     docker network create lsky_net &>/dev/null
-    docker network connect lsky_net "$MYSQL_CONTAINER_NAME" &>/dev/null
+    docker network connect lsky_net "$MYSQL_CONTAINER" &>/dev/null
 
 cat > docker-compose.yml <<EOF
 version: '3'
@@ -87,14 +108,13 @@ services:
   lskypro:
     image: halcyonazure/lsky-pro-docker:latest
     restart: unless-stopped
-    hostname: lsky
-    container_name: lsky
+    container_name: ${LSKY_CONTAINER}
     environment:
       - WEB_PORT=8089
-      - DB_HOST=${MYSQL_CONTAINER_NAME}
-      - DB_DATABASE=lsky
-      - DB_USERNAME=lsky
-      - DB_PASSWORD=123456
+      - DB_HOST=${MYSQL_CONTAINER}
+      - DB_DATABASE=${MYSQL_DATABASE}
+      - DB_USERNAME=${MYSQL_USER}
+      - DB_PASSWORD=${MYSQL_PASS}
     volumes:
       - ./data:/var/www/html/
     ports:
@@ -106,35 +126,37 @@ networks:
   lsky_net:
     external: true
 EOF
-}
 
-# 启动服务
-start_service() {
-    green "启动 Lsky Pro..."
     docker-compose up -d
-    local ip=$(get_ip)
-    green "部署完成！访问地址: http://${ip}:${LSKY_PORT}"
+    init_mysql_user "$MYSQL_CONTAINER" "$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" "$MYSQL_USER" "$MYSQL_PASS"
 }
 
-# 更新服务
-update_service() {
+# 启动完成提示
+finish_msg() {
+    local ip=$(get_ip)
+    local pub_ip=$(curl -s ifconfig.me || echo "公网IP获取失败")
+    green "部署完成！"
+    echo "内网访问: http://${ip}:${LSKY_PORT}"
+    echo "公网访问: http://${pub_ip}:${LSKY_PORT}"
+}
+
+# 更新 Lsky Pro
+update_lsky() {
     green "更新 Lsky Pro..."
-    docker-compose pull
+    docker-compose pull lskypro
     docker-compose up -d
-    local ip=$(get_ip)
-    green "更新完成！访问地址: http://${ip}:${LSKY_PORT}"
+    green "更新完成！"
 }
 
-# 卸载服务
-uninstall_service() {
-    red "⚠ 这将会停止并删除容器、网络以及数据！"
-    read -rp "确定要卸载 Lsky Pro 吗？(y/N): " confirm
-    if [[ "$confirm" =~ ^[Yy]$ ]]; then
-        docker-compose down -v
+# 卸载 Lsky Pro
+uninstall_lsky() {
+    read -rp "是否保留数据? [y/N]: " keep
+    docker-compose down
+    if [[ ! "$keep" =~ ^[Yy]$ ]]; then
         rm -rf "$WORK_DIR"
-        green "Lsky Pro 已卸载！"
+        green "已删除所有文件和数据。"
     else
-        yellow "已取消卸载操作。"
+        green "已卸载 Lsky Pro，但保留了数据。"
     fi
 }
 
@@ -154,25 +176,18 @@ while true; do
         1)
             check_port
             generate_compose_a
-            start_service
+            finish_msg
             ;;
         2)
             check_port
-            read -rp "请输入已有 MySQL 容器名(默认: $MYSQL_CONTAINER_NAME): " input_name
-            MYSQL_CONTAINER_NAME="${input_name:-$MYSQL_CONTAINER_NAME}"
             generate_compose_b
-            green "请确保 MySQL 中已创建数据库和用户："
-            yellow "CREATE DATABASE lsky;"
-            yellow "CREATE USER 'lsky'@'%' IDENTIFIED BY '123456';"
-            yellow "GRANT ALL PRIVILEGES ON lsky.* TO 'lsky'@'%';"
-            yellow "FLUSH PRIVILEGES;"
-            start_service
+            finish_msg
             ;;
         3)
-            update_service
+            update_lsky
             ;;
         4)
-            uninstall_service
+            uninstall_lsky
             ;;
         5)
             exit 0
