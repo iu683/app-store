@@ -17,7 +17,7 @@ update_script() {
     echo -e "${CYAN}正在更新脚本...${RESET}"
     mkdir -p "$SCRIPT_DIR"
     curl -fsSL -o "$FULL_PATH" \
-        https://raw.githubusercontent.com/你的用户名/vps-manager/main/vps_menu.sh
+        https://raw.githubusercontent.com/iu683/app-store/main/vpsdocker.sh
     chmod +x "$FULL_PATH"
     echo -e "${GREEN}更新完成!${RESET}"
 }
@@ -33,24 +33,27 @@ uninstall_script() {
 # ================== 菜单函数 ==================
 show_menu() {
     clear
-    echo -e "${CYAN}====== VPS 一键安装管理菜单 ======${RESET}"
+    # 彩色标题框
+    echo -e "${CYAN}==============================================${RESET}"
+    echo -e "${CYAN}          VPS 一键安装管理控制台           ${RESET}"
+    echo -e "${CYAN}==============================================${RESET}"
     echo
-    # 双列显示
-    printf "%-4s %-28s %-4s %-28s\n" "1." "安装管理 Docker" "2." "MySQL 数据管理"
-    printf "%-4s %-28s %-4s %-28s\n" "3." "Wallos 订阅" "4." "Kuma-Mieru"
-    printf "%-4s %-28s %-4s %-28s\n" "5." "彩虹聚合 DNS" "6." "XTrafficDash"
-    printf "%-4s %-28s %-4s %-28s\n" "7." "Nexus Terminal" "8." "VPS 价值计算"
-    printf "%-4s %-28s %-4s %-28s\n" "9." "密码管理 (Vaultwarden)" "10." "Sun-Panel"
-    printf "%-4s %-28s %-4s %-28s\n" "11." "SPlayer 音乐" "12." "Vertex"
-    printf "%-4s %-28s %-4s %-28s\n" "13." "AutoBangumi" "14." "MoviePilot"
-    printf "%-4s %-28s %-4s %-28s\n" "15." "Foxel" "16." "STB 图床"
-    printf "%-4s %-28s %-4s %-28s\n" "17." "OCI 抢机" "18." "y探长"
-    printf "%-4s %-28s %-4s %-28s\n" "19." "Sub-store" "20." "Poste.io 邮局"
-    printf "%-4s %-28s %-4s %-28s\n" "21." "WebSSH" "22." "Openlist"
-    printf "%-4s %-28s %-4s %-28s\n" "23." "qBittorrent v4.6.3" "24." "音乐服务"
-    printf "%-4s %-28s %-4s %-28s\n" "25." "兰空图床" "26." "兰空图床 (无 MySQL)"
-    printf "%-4s %-28s %-4s %-28s\n" "88." "更新脚本" "99." "卸载脚本"
-    printf "%-4s %-28s\n" "0." "退出"
+    # 双列显示，字体绿色
+    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "1." "安装管理 Docker" "2." "MySQL 数据管理"
+    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "3." "Wallos 订阅" "4." "Kuma-Mieru"
+    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "5." "彩虹聚合 DNS" "6." "XTrafficDash"
+    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "7." "Nexus Terminal" "8." "VPS 价值计算"
+    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "9." "密码管理 (Vaultwarden)" "10." "Sun-Panel"
+    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "11." "SPlayer 音乐" "12." "Vertex"
+    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "13." "AutoBangumi" "14." "MoviePilot"
+    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "15." "Foxel" "16." "STB 图床"
+    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "17." "OCI 抢机" "18." "y探长"
+    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "19." "Sub-store" "20." "Poste.io 邮局"
+    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "21." "WebSSH" "22." "Openlist"
+    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "23." "qBittorrent v4.6.3" "24." "音乐服务"
+    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "25." "兰空图床" "26." "兰空图床 (无 MySQL)"
+    printf "${GREEN}%-4s %-30s %-4s %-30s${RESET}\n" "88." "更新脚本" "99." "卸载脚本"
+    printf "${GREEN}%-4s %-30s${RESET}\n" "0." "退出"
     echo
     read -p "请输入数字选择操作: " choice
 }
