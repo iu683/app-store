@@ -1,20 +1,27 @@
 #!/bin/bash
-# 功能：音乐服务管理脚本（Navidrome + Miniserve + MusicTagWeb）
-# 第一次运行：bash manage_music.sh install
-# 再次运行：bash manage_music.sh
+# 一键部署三合一音乐服务 + 自动打开管理菜单
+# 支持第一次安装和后续管理
 
 PROJECT_DIR=~/music_server
 MUSIC_DIR=/data/music
 COMPOSE_FILE="$PROJECT_DIR/docker-compose.yml"
+MANAGE_SCRIPT="$PROJECT_DIR/manage_music.sh"
 
-# ---------- 安装函数 ----------
+# ---------- 1️⃣ 检查环境 ----------
+for cmd in docker docker-compose; do
+    if ! command -v $cmd &>/dev/null; then
+        echo "❌ $cmd 未安装，请先安装 $cmd！"
+        exit 1
+    fi
+done
+
+# ---------- 2️⃣ 创建目录 ----------
+mkdir -p "$PROJECT_DIR/data" "$MUSIC_DIR"
+cd "$PROJECT_DIR" || exit
+
+# ---------- 3️⃣ 定义安装函数 ----------
 install_services() {
     echo "========== 开始安装三合一音乐服务 =========="
-
-    # 创建目录
-    mkdir -p "$PROJECT_DIR/data"
-    mkdir -p "$MUSIC_DIR"
-    cd "$PROJECT_DIR" || exit
 
     # 交互输入 API Key 和账号密码
     read -p "请输入 LastFM API Key: " ND_LASTFM_APIKEY
@@ -111,15 +118,15 @@ EOF
     echo "========================================="
 }
 
-# ---------- 菜单函数 ----------
+# ---------- 4️⃣ 定义管理菜单 ----------
 show_menu() {
     clear
     echo "==============================="
     echo "   音乐服务管理菜单"
     echo "==============================="
     echo "容器状态:"
-    docker-compose -f $COMPOSE_FILE ps --services --filter "status=running" | awk '{print "  " $1 " : 运行中"}'
-    docker-compose -f $COMPOSE_FILE ps --services --filter "status=exited" | awk '{print "  " $1 " : 停止"}'
+    docker-compose ps --services --filter "status=running" | awk '{print "  " $1 " : 运行中"}'
+    docker-compose ps --services --filter "status=exited" | awk '{print "  " $1 " : 停止"}'
     echo "-------------------------------"
     echo "1) 启动所有服务"
     echo "2) 停止所有服务"
@@ -135,36 +142,36 @@ show_menu() {
     echo -n "请输入选项: "
 }
 
-start_services() { docker-compose -f $COMPOSE_FILE up -d; echo "所有服务已启动"; read -p "按回车返回菜单..."; }
-stop_services() { docker-compose -f $COMPOSE_FILE down; echo "所有服务已停止"; read -p "按回车返回菜单..."; }
-restart_services() { docker-compose -f $COMPOSE_FILE restart; echo "所有服务已重启"; read -p "按回车返回菜单..."; }
+start_services() { docker-compose up -d; echo "所有服务已启动"; read -p "按回车返回菜单..."; }
+stop_services() { docker-compose down; echo "所有服务已停止"; read -p "按回车返回菜单..."; }
+restart_services() { docker-compose restart; echo "所有服务已重启"; read -p "按回车返回菜单..."; }
 
 view_logs() {
     case $1 in
-        navidrome) docker-compose -f $COMPOSE_FILE logs -f navidrome ;;
-        miniserve) docker-compose -f $COMPOSE_FILE logs -f miniserve ;;
-        music_tag_web) docker-compose -f $COMPOSE_FILE logs -f music_tag_web ;;
+        navidrome) docker-compose logs -f navidrome ;;
+        miniserve) docker-compose logs -f miniserve ;;
+        music_tag_web) docker-compose logs -f music_tag_web ;;
     esac
     read -p "按回车返回菜单..."
 }
 
-view_status() { docker-compose -f $COMPOSE_FILE ps; read -p "按回车返回菜单..."; }
+view_status() { docker-compose ps; read -p "按回车返回菜单..."; }
 
 update_services() {
     echo "拉取最新镜像..."
-    docker-compose -f $COMPOSE_FILE pull
+    docker-compose pull
     echo "重新启动服务..."
-    docker-compose -f $COMPOSE_FILE up -d
+    docker-compose up -d
     echo "更新完成"
     read -p "按回车返回菜单..."
 }
 
 uninstall_services() {
-    echo "⚠️  警告：此操作将停止并删除所有容器及镜像！"
+    echo "⚠️ 警告：此操作将停止并删除所有容器及镜像！"
     read -p "你确定要继续吗？(y/N): " confirm
     if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-        docker-compose -f $COMPOSE_FILE down
-        docker-compose -f $COMPOSE_FILE rm -f
+        docker-compose down
+        docker-compose rm -f
         echo "操作完成，如需删除数据，请手动清理 ./data 文件夹"
     else
         echo "已取消卸载操作"
@@ -172,17 +179,10 @@ uninstall_services() {
     read -p "按回车返回菜单..."
 }
 
-# ---------- 主程序 ----------
-cd "$PROJECT_DIR" || exit
-
-if [[ "$1" == "install" ]]; then
-    install_services
-fi
-
-# 检查 docker-compose.yml 是否存在
+# ---------- 5️⃣ 执行 ----------
+# 第一次安装
 if [ ! -f "$COMPOSE_FILE" ]; then
-    echo "❌ docker-compose.yml 不存在，请先运行 bash manage_music.sh install"
-    exit 1
+    install_services
 fi
 
 # 打开管理菜单
