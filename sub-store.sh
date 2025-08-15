@@ -1,114 +1,83 @@
 #!/bin/bash
-# Sub-Store 一键管理脚本
-# 作者: ChatGPT
-# 说明: 支持安装、启动、停止、重启、日志、更新、卸载 + 自动显示公网地址
+# ========================================
+# Sub-Store 一键管理脚本（增强版）
+# 功能：安装/卸载/更新/日志/公网IP提示
+# ========================================
 
-DATA_DIR="/root/sub-store-data"
+# ===== 配置部分 =====
 CONTAINER_NAME="sub-store"
 IMAGE_NAME="xream/sub-store"
-PORT="3005"  # 改为3005端口
+DATA_DIR="/root/sub-store-data"
+PORT=3005
+BACKEND_PATH="/QYVa9TxuMpyQ2ZOsZt96"
+CRON="0 0 * * *"
 
-# 获取公网 IP（优先用外部服务，失败则用hostname -I）
+# ===== 获取公网IP =====
 get_public_ip() {
-    curl -s ipv4.ip.sb || curl -s ifconfig.me || hostname -I | awk '{print $1}'
+    local IP
+    IP=$(curl -s ipv4.ip.sb || curl -s ifconfig.me || curl -s ipinfo.io/ip)
+    echo "$IP"
 }
 
-# 生成随机路径
-generate_path() {
-    tr -dc 'A-Za-z0-9' </dev/urandom | head -c 20
-}
-
+# ===== 安装/启动函数 =====
 install_substore() {
-    if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-        echo "⚠️  容器已存在，请先卸载或重启。"
-        return
-    fi
+    echo -e "\033[32m[INFO] 开始安装/启动 Sub-Store...\033[0m"
+    docker stop $CONTAINER_NAME >/dev/null 2>&1
+    docker rm $CONTAINER_NAME >/dev/null 2>&1
 
-    RANDOM_PATH="/$(generate_path)"
-    PUBLIC_IP=$(get_public_ip)
-    echo "✅  启动路径: ${RANDOM_PATH}"
-    echo "🌐 检测到公网 IP: ${PUBLIC_IP}"
-
-    mkdir -p "$DATA_DIR"
     docker run -d \
-        --name "$CONTAINER_NAME" \
+        --name $CONTAINER_NAME \
         --restart=always \
-        -e "SUB_STORE_CRON=0 0 * * *" \
-        -e "SUB_STORE_FRONTEND_BACKEND_PATH=${RANDOM_PATH}" \
-        -p ${PORT}:${PORT} \
+        -e "SUB_STORE_BACKEND_SYNC_CRON=$CRON" \
+        -e "SUB_STORE_FRONTEND_BACKEND_PATH=$BACKEND_PATH" \
+        -p ${PORT}:3001 \
         -v ${DATA_DIR}:/opt/app/data \
-        ${IMAGE_NAME}
+        $IMAGE_NAME
 
-    echo "🚀 Sub-Store 已启动"
-    echo "--------------------------------------"
-    echo "🌍 Web面板地址: http://${PUBLIC_IP}:${PORT}"
-    echo "🔗 API地址: http://${PUBLIC_IP}:${PORT}${RANDOM_PATH}"
-    echo "--------------------------------------"
+    local PUBLIC_IP
+    PUBLIC_IP=$(get_public_ip)
+    echo -e "\033[32m[OK] Sub-Store 安装/启动完成！\033[0m"
+    echo -e "访问地址：\033[36mhttp://${PUBLIC_IP}:${PORT}?api=http://${PUBLIC_IP}:${PORT}${BACKEND_PATH}\033[0m"
 }
 
-stop_substore() {
-    docker stop "$CONTAINER_NAME" 2>/dev/null && echo "✅ 已停止" || echo "⚠️ 容器未运行"
-}
-
-start_substore() {
-    docker start "$CONTAINER_NAME" 2>/dev/null && echo "✅ 已启动" || echo "⚠️ 容器不存在"
-}
-
-restart_substore() {
-    docker restart "$CONTAINER_NAME" 2>/dev/null && echo "✅ 已重启" || echo "⚠️ 容器不存在"
-}
-
-logs_substore() {
-    docker logs -f "$CONTAINER_NAME"
-}
-
-update_substore() {
-    echo "⬇️ 拉取最新镜像..."
-    docker pull ${IMAGE_NAME}
-    echo "♻️ 重启容器..."
-    docker stop "$CONTAINER_NAME"
-    docker rm "$CONTAINER_NAME"
-    install_substore
-}
-
+# ===== 卸载函数 =====
 uninstall_substore() {
-    docker stop "$CONTAINER_NAME" 2>/dev/null
-    docker rm "$CONTAINER_NAME" 2>/dev/null
-    read -p "❗ 是否删除数据目录 ${DATA_DIR} ? (y/N): " confirm
-    if [[ "$confirm" =~ ^[Yy]$ ]]; then
-        rm -rf "$DATA_DIR"
-        echo "🗑️ 已删除数据目录"
-    fi
-    echo "✅ 已卸载 Sub-Store"
+    echo -e "\033[33m[INFO] 正在卸载 Sub-Store...\033[0m"
+    docker stop $CONTAINER_NAME >/dev/null 2>&1
+    docker rm $CONTAINER_NAME >/dev/null 2>&1
+    echo -e "\033[32m[OK] Sub-Store 已卸载。\033[0m"
 }
 
-menu() {
-    clear
-    echo "===== Sub-Store 一键管理脚本 ====="
-    echo "1. 安装 / 启动"
-    echo "2. 停止"
-    echo "3. 启动"
-    echo "4. 重启"
-    echo "5. 查看日志"
-    echo "6. 更新"
-    echo "7. 卸载"
-    echo "0. 退出"
-    echo "================================"
-    read -p "请输入选项: " choice
-    case "$choice" in
-        1) install_substore ;;
-        2) stop_substore ;;
-        3) start_substore ;;
-        4) restart_substore ;;
-        5) logs_substore ;;
-        6) update_substore ;;
-        7) uninstall_substore ;;
-        0) exit 0 ;;
-        *) echo "❌ 无效选项" ;;
-    esac
+# ===== 更新函数 =====
+update_substore() {
+    echo -e "\033[33m[INFO] 更新镜像并重启容器...\033[0m"
+    docker pull $IMAGE_NAME
+    install_substore
+    echo -e "\033[32m[OK] 更新完成！\033[0m"
 }
 
+# ===== 日志查看 =====
+view_logs() {
+    echo -e "\033[34m[INFO] 查看 Sub-Store 日志，按 Ctrl+C 退出...\033[0m"
+    docker logs -f $CONTAINER_NAME
+}
+
+# ===== 菜单 =====
 while true; do
-    menu
-    read -p "按回车键返回菜单..." dummy
+    echo -e "\n\033[34m=== Sub-Store 一键管理 ===\033[0m"
+    echo "1. 安装 / 启动"
+    echo "2. 卸载"
+    echo "3. 更新"
+    echo "4. 查看日志"
+    echo "0. 退出"
+    read -p "请输入选项: " choice
+
+    case $choice in
+        1) install_substore ;;
+        2) uninstall_substore ;;
+        3) update_substore ;;
+        4) view_logs ;;
+        0) exit 0 ;;
+        *) echo -e "\033[31m[ERROR] 无效选项\033[0m" ;;
+    esac
 done
