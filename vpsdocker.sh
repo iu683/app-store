@@ -56,6 +56,10 @@ show_menu() {
         "88|更新脚本" "99|卸载脚本"
     )
 
+    # 左列固定宽度（字符数），右列固定间距
+    left_width=28   # 左列宽度，根据最大长度调整
+    space_between=4 # 左右列间距
+
     for ((i=0; i<${#menu_items[@]}; i+=2)); do
         left="${menu_items[i]}"
         right="${menu_items[i+1]}"
@@ -65,12 +69,13 @@ show_menu() {
         right_no=${right%%|*}
         right_name=${right#*|}
 
-        # 补零处理（编号 < 10 且不为 0）
+        # 编号补零处理（编号 < 10 且不为 0）
         [[ "$left_no" -lt 10 ]] && left_no=$(printf "%02d" "$left_no")
         [[ "$right_no" -lt 10 ]] && right_no=$(printf "%02d" "$right_no")
 
-        printf "${GREEN}%s. %s\t%s. %s${RESET}\n" \
-            "$left_no" "$left_name" "$right_no" "$right_name"
+        # 输出左列+固定空格+右列，保证对齐
+        printf "${GREEN}%-3s %-*s%*s%-3s %s${RESET}\n" \
+            "$left_no." "$left_width" "$left_name" "$space_between" "" "$right_no." "$right_name"
     done
 
     printf "${GREEN}0. 退出${RESET}\n\n"
