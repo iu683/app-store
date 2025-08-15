@@ -56,8 +56,6 @@ show_menu() {
         "88|更新脚本" "99|卸载脚本"
     )
 
-    col_width=38
-
     for ((i=0; i<${#menu_items[@]}; i+=2)); do
         left="${menu_items[i]}"
         right="${menu_items[i+1]}"
@@ -71,12 +69,8 @@ show_menu() {
         [[ "$left_no" -lt 10 ]] && left_no=$(printf "%02d" "$left_no")
         [[ "$right_no" -lt 10 ]] && right_no=$(printf "%02d" "$right_no")
 
-        left_len=${#left_no}+${#left_name}+3
-        left_padding=$((col_width - left_len))
-        (( left_padding<0 )) && left_padding=0
-
-        printf "${GREEN}%s. %s%*s" "$left_no" "$left_name" "$left_padding" " "
-        printf "%s. %s${RESET}\n" "$right_no" "$right_name"
+        printf "${GREEN}%s. %s\t%s. %s${RESET}\n" \
+            "$left_no" "$left_name" "$right_no" "$right_name"
     done
 
     printf "${GREEN}0. 退出${RESET}\n\n"
