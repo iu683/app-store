@@ -17,6 +17,22 @@
 
 ```bash
 bash <(curl -sL https://raw.githubusercontent.com/iu683/app-store/main/vpsdocker.sh)
+使用
 
+运行脚本后，输入编号执行对应功能
+
+输入 0 退出脚本
+
+输入 88 更新脚本
+
+输入 99 卸载脚本
+
+注意事项
+
+需要已安装 curl
+
+网络需能访问 GitHub
+
+卸载脚本会删除 vpsdocker.sh 文件
 
 
