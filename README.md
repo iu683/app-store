@@ -20,4 +20,3 @@ bash <(curl -sL https://raw.githubusercontent.com/iu683/app-store/main/vpsdocker
 
 
 
-
