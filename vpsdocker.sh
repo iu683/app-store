@@ -79,23 +79,23 @@ install_service() {
         25) bash <(curl -sL https://raw.githubusercontent.com/iu683/app-store/main/lsky_menu.sh) ;;
         26) bash <(curl -sL https://raw.githubusercontent.com/iu683/app-store/main/iuLsky.sh) ;;
         88)
-            echo -e "${GREEN}正在更新脚本...${RESET}"
+            echo -e "\033[31m正在更新脚本...\033[0m"
             curl -fsSL -o "$SCRIPT_PATH" https://raw.githubusercontent.com/iu683/app-store/main/vpsdocker.sh
             chmod +x "$SCRIPT_PATH"
-            echo -e "${GREEN}更新完成!${RESET}"
+            echo -e "\033[31m更新完成!\033[0m"
             ;;
         99)
-            echo -e "${GREEN}正在卸载脚本...${RESET}"
+            echo -e "\033[31m正在卸载脚本...\033[0m"
             rm -f "$SCRIPT_PATH"
-            echo -e "${GREEN}卸载完成!${RESET}"
+            echo -e "\033[31m卸载完成!\033[0m"
             exit 0
             ;;
         0)
-            echo -e "${GREEN}退出脚本...${RESET}"
+            echo -e "\033[31m退出脚本...\033[0m"
             exit 0
             ;;
         *)
-            echo -e "${GREEN}无效选择，请重新输入!${RESET}"
+            echo -e "\033[31m无效选择，请重新输入!\033[0m"
             ;;
     esac
 }
@@ -103,8 +103,8 @@ install_service() {
 # ================== 主循环 ==================
 while true; do
     show_menu
-    read -p "请输入编号: " choice
+    read -p $'\033[31m请输入编号: \033[0m' choice
     install_service "$choice"
-    echo -e "\n按 Enter 返回菜单..."
+    echo -e "\n\033[31m按 Enter 返回菜单...\033[0m"
     read
 done
